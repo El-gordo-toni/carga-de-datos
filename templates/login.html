@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Login Admin</title>
+
+    <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #eef3ee;
+            padding: 25px;
+            margin: 0;
+        }
+
+        .login {
+            max-width: 420px;
+            margin: 90px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 18px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+
+        h1 {
+            text-align: center;
+            color: #157347;
+            margin-bottom: 25px;
+        }
+
+        input,
+        button {
+            width: 100%;
+            padding: 13px;
+            font-size: 16px;
+            border-radius: 10px;
+            box-sizing: border-box;
+            margin-bottom: 14px;
+        }
+
+        input {
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background: #157347;
+            color: white;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0f5c38;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #842029;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 14px;
+            font-weight: bold;
+        }
+
+        .volver {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .volver a {
+            color: #157347;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .volver a:hover {
+            text-decoration: underline;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="login">
+
+    <h1>Panel Admin</h1>
+
+    {% if error %}
+        <div class="error">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <form method="POST">
+
+        <input
+            type="password"
+            name="password"
+            placeholder="Contraseña"
+            required
+        >
+
+        <button type="submit">
+            Ingresar
+        </button>
+
+    </form>
+
+    <div class="volver">
+        <a href="/">
+            Volver a posiciones
+        </a>
+    </div>
+
+</div>
+
+</body>
+
+</html>

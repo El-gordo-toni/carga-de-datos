@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{{ titulo }}</title>
+
+    <script>
+        setInterval(function () {
+            location.reload();
+        }, 5000);
+    </script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 25px;
+            margin: 0;
+            min-height: 100vh;
+            background: #eef3ee;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.20);
+            z-index: 0;
+        }
+
+        .contenedor {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: auto;
+            background: transparent;
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 42px;
+            margin-bottom: 5px;
+            color: darkgreen;
+        }
+
+        .subtitulo {
+            text-align: center;
+            font-size: 26px;
+            color: darkgreen;
+            margin-bottom: 10px;
+        }
+
+        .subtitulo2 {
+            text-align: center;
+            font-size: 22px;
+            color: darkgreen;
+            margin-bottom: 35px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .logo img {
+            max-width: 240px;
+            max-height: 240px;
+            object-fit: contain;
+        }
+
+        .listas {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .categoria {
+            background: white;
+            border-radius: 16px;
+            padding: 18px;
+            border: 1px solid #ddd;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+        }
+
+        .categoria h2 {
+            text-align: center;
+            color: #157347;
+            margin-bottom: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 10px;
+            background: white;
+        }
+
+        th {
+            background: #157347;
+            color: white;
+            padding: 10px;
+        }
+
+        td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        tr:hover {
+            background: #f2f2f2;
+        }
+
+        .admin-link {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .admin-link a {
+            color: #157347;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .admin-link a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 1000px) {
+            .listas {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 32px;
+            }
+
+            .subtitulo {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body
+{% if fondo %}
+style="
+background-image:url('{{ url_for('static', filename=fondo) }}');
+background-size:cover;
+background-position:center;
+background-attachment:fixed;
+"
+{% endif %}
+>
+
+<div class="overlay"></div>
+
+<div class="contenedor">
+
+    {% if logo %}
+    <div class="logo">
+        <img src="{{ url_for('static', filename=logo) }}">
+    </div>
+    {% endif %}
+
+    <h1>{{ titulo }}</h1>
+
+    <div class="subtitulo">
+        {{ subtitulo }}
+    </div>
+
+    <div class="subtitulo2">
+        {{ subtitulo2 }}
+    </div>
+
+    <div class="listas">
+
+        {% for categoria, lista in categorias.items() %}
+
+        <div class="categoria">
+
+            <h2>Categoría {{ categoria }}</h2>
+
+            {% if lista %}
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Pos</th>
+                        <th>Jugador</th>
+                        <th>HCP</th>
+                        <th>Ida</th>
+                        <th>Vuelta</th>
+                        <th>Gross</th>
+                        <th>Neto</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for j in lista %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ j.nombre }}</td>
+                        <td>{{ j.handicap }}</td>
+                        <td>{{ j.ida }}</td>
+                        <td>{{ j.vuelta }}</td>
+                        <td>{{ j.gross }}</td>
+                        <td>
+                            <strong>{{ j.neto }}</strong>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% else %}
+
+            <p style="text-align:center;">
+                Sin resultados cargados
+            </p>
+
+            {% endif %}
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+    <div class="admin-link">
+        <a href="/admin">Panel admin</a>
+    </div>
+
+</div>
+
+</body>
+</html>

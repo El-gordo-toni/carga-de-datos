@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - {{ titulo }}</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #eef3ee;
+            padding: 25px;
+            margin: 0;
+        }
+
+        .contenedor {
+            max-width: 1400px;
+            margin: auto;
+            background: white;
+            padding: 25px;
+            border-radius: 18px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+
+        h1, h2, h3 {
+            text-align: center;
+        }
+
+        .subtitulo {
+            text-align: center;
+            color: #555;
+            font-size: 18px;
+            margin-top: -10px;
+            margin-bottom: 5px;
+        }
+
+        .subtitulo2 {
+            text-align: center;
+            color: #777;
+            font-size: 16px;
+            margin-bottom: 25px;
+        }
+
+        .logo-preview {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .logo-preview img {
+            max-width: 180px;
+            max-height: 180px;
+            object-fit: contain;
+        }
+
+        .alerta {
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        .ok {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        form {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        .form-excel {
+            grid-template-columns: 2fr 1fr;
+        }
+
+        .form-manual {
+            grid-template-columns: 2fr 1fr 1fr;
+        }
+
+        .form-config {
+            grid-template-columns: 1fr;
+        }
+
+        .form-resultado {
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+        }
+
+        select,
+        input,
+        button {
+            padding: 10px;
+            font-size: 15px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background: #157347;
+            color: white;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0f5c38;
+        }
+
+        .listas {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        .categoria {
+            background: #f5f5f5;
+            border-radius: 14px;
+            padding: 15px;
+            border: 1px solid #ddd;
+        }
+
+        .jugador {
+            background: white;
+            margin-bottom: 10px;
+            padding: 12px;
+            border-radius: 10px;
+            border-left: 5px solid #157347;
+        }
+
+        .puesto {
+            font-weight: bold;
+            color: #157347;
+            margin-bottom: 5px;
+        }
+
+        .borrar {
+            color: red;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .reset {
+            display: inline-block;
+            margin: 10px 5px 0 5px;
+            padding: 12px 18px;
+            background: #b02a37;
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        .descargar {
+            background: #157347;
+        }
+
+        .acciones {
+            text-align: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th {
+            background: #157347;
+            color: white;
+        }
+
+        th, td {
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+            text-align: center;
+        }
+
+        .mini-form {
+            display: flex;
+            gap: 5px;
+            margin: 0;
+            justify-content: center;
+        }
+
+        .mini-form input {
+            width: 80px;
+            padding: 6px;
+        }
+
+        .mini-form .nombre {
+            width: 180px;
+        }
+
+        .mini-form button {
+            padding: 6px 10px;
+            font-size: 13px;
+        }
+
+        .volver {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .volver a {
+            color: #157347;
+            font-weight: bold;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+
+        .bloque {
+            background: #fafafa;
+            padding: 18px;
+            border-radius: 14px;
+            border: 1px solid #ddd;
+            margin-bottom: 25px;
+        }
+
+        @media (max-width: 900px) {
+            .form-excel,
+            .form-manual,
+            .form-config,
+            .form-resultado {
+                grid-template-columns: 1fr;
+            }
+
+            .listas {
+                grid-template-columns: 1fr;
+            }
+
+            .mini-form {
+                flex-direction: column;
+            }
+
+            .mini-form input,
+            .mini-form .nombre {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="contenedor">
+
+    <h1>Panel Admin</h1>
+
+    {% if logo %}
+    <div class="logo-preview">
+        <img src="{{ url_for('static', filename=logo) }}">
+    </div>
+    {% endif %}
+
+    <h2>{{ titulo }}</h2>
+    <div class="subtitulo">{{ subtitulo }}</div>
+    <div class="subtitulo2">{{ subtitulo2 }}</div>
+
+    <div class="volver">
+        <a href="/">Ver tabla pública</a>
+        <a href="/logout">Cerrar sesión</a>
+    </div>
+
+    {% if ok %}
+        <div class="alerta ok">Operación realizada correctamente.</div>
+    {% endif %}
+
+    {% if error == "titulo_vacio" %}
+        <div class="alerta">El título no puede estar vacío.</div>
+    {% endif %}
+
+    {% if error == "logo_invalido" %}
+        <div class="alerta">El logo debe ser PNG, JPG, JPEG o WEBP.</div>
+    {% endif %}
+
+    {% if error == "fondo_invalido" %}
+        <div class="alerta">El fondo debe ser PNG, JPG, JPEG o WEBP.</div>
+    {% endif %}
+
+    {% if error == "jugador_repetido" %}
+        <div class="alerta">Este jugador ya tiene resultado cargado.</div>
+    {% endif %}
+
+    {% if error == "jugador_no_existe" %}
+        <div class="alerta">El jugador seleccionado no existe.</div>
+    {% endif %}
+
+    {% if error == "sin_archivo" %}
+        <div class="alerta">No seleccionaste ningún archivo.</div>
+    {% endif %}
+
+    {% if error == "archivo_invalido" %}
+        <div class="alerta">El archivo debe ser Excel .xlsx.</div>
+    {% endif %}
+
+    {% if error == "jugador_ya_existe" %}
+        <div class="alerta">Ese jugador ya existe.</div>
+    {% endif %}
+
+    {% if error == "handicap_invalido" %}
+        <div class="alerta">El handicap debe estar entre 0 y 36.</div>
+    {% endif %}
+
+    {% if error == "nombre_vacio" %}
+        <div class="alerta">El nombre no puede estar vacío.</div>
+    {% endif %}
+
+    <div class="bloque">
+        <h2>Configurar pantalla pública</h2>
+
+        <form method="POST" action="/guardar_configuracion" class="form-config">
+            <input type="text" name="titulo" value="{{ titulo }}" placeholder="Título del torneo" required>
+            <input type="text" name="subtitulo" value="{{ subtitulo }}" placeholder="Subtítulo 1">
+            <input type="text" name="subtitulo2" value="{{ subtitulo2 }}" placeholder="Subtítulo 2">
+            <input type="text" name="logo" value="{{ logo }}" placeholder="Ejemplo: logo.png">
+            <input type="text" name="fondo" value="{{ fondo }}" placeholder="Ejemplo: fondo.jpg">
+            <button type="submit">Guardar configuración</button>
+        </form>
+    </div>
+
+    <div class="bloque">
+        <h2>Cargar jugadores desde Excel</h2>
+
+        <form method="POST" action="/cargar_excel" enctype="multipart/form-data" class="form-excel">
+            <input type="file" name="archivo" accept=".xlsx" required>
+            <button type="submit">Subir Excel</button>
+        </form>
+    </div>
+
+    <div class="bloque">
+        <h2>Agregar jugador manual</h2>
+
+        <form method="POST" action="/agregar_jugador" class="form-manual">
+            <input type="text" name="nombre" placeholder="Nombre y apellido" required>
+            <input type="number" name="handicap" placeholder="HCP" min="0" max="36" required>
+            <button type="submit">Agregar jugador</button>
+        </form>
+    </div>
+
+    <div class="bloque">
+        <h2>Cargar resultado</h2>
+
+        <form method="POST" action="/admin" class="form-resultado">
+
+            <select name="jugador" required>
+                <option value="">Seleccionar jugador</option>
+
+                {% for jugador in jugadores %}
+                    <option value="{{ jugador.id }}">
+                        {{ jugador.nombre }} - HCP {{ jugador.handicap }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <input type="number" name="ida" placeholder="Ida" required>
+            <input type="number" name="vuelta" placeholder="Vuelta" required>
+
+            <button type="submit">Cargar resultado</button>
+        </form>
+    </div>
+
+    <h2>Posiciones por Categoría</h2>
+
+    <div class="listas">
+
+        {% for categoria, lista in categorias.items() %}
+
+            <div class="categoria">
+
+                <h3>Categoría {{ categoria }}</h3>
+
+                {% if lista %}
+
+                    {% for j in lista %}
+
+                        <div class="jugador">
+
+                            <div class="puesto">{{ loop.index }}° Puesto</div>
+
+                            <strong>{{ j.nombre }}</strong><br>
+                            HCP: {{ j.handicap }}<br>
+                            Ida: {{ j.ida }} | Vuelta: {{ j.vuelta }}<br>
+                            Gross: {{ j.gross }}<br>
+                            Neto: <strong>{{ j.neto }}</strong><br><br>
+
+                            <form method="POST" action="/editar_resultado/{{ j.id }}" class="mini-form">
+                                <input type="number" name="ida" value="{{ j.ida }}" required>
+                                <input type="number" name="vuelta" value="{{ j.vuelta }}" required>
+                                <button type="submit">Modificar</button>
+                            </form>
+
+                            <br>
+
+                            <a
+                                class="borrar"
+                                href="/borrar/{{ j.id }}"
+                                onclick="return confirm('¿Seguro que querés borrar este resultado?')"
+                            >
+                                Borrar resultado
+                            </a>
+
+                        </div>
+
+                    {% endfor %}
+
+                {% else %}
+
+                    <p>Sin resultados cargados</p>
+
+                {% endif %}
+
+            </div>
+
+        {% endfor %}
+
+    </div>
+
+    <h2>Modificar jugadores</h2>
+
+    <table>
+        <tr>
+            <th>Jugador</th>
+            <th>Modificar</th>
+            <th>Borrar</th>
+        </tr>
+
+        {% for jugador in jugadores %}
+        <tr>
+            <td>{{ jugador.nombre }} - HCP {{ jugador.handicap }}</td>
+
+            <td>
+                <form method="POST" action="/editar_jugador/{{ jugador.id }}" class="mini-form">
+                    <input class="nombre" type="text" name="nombre" value="{{ jugador.nombre }}" required>
+                    <input type="number" name="handicap" value="{{ jugador.handicap }}" min="0" max="36" required>
+                    <button type="submit">Guardar</button>
+                </form>
+            </td>
+
+            <td>
+                <a
+                    class="borrar"
+                    href="/borrar_jugador/{{ jugador.id }}"
+                    onclick="return confirm('¿Seguro que querés borrar este jugador y su resultado?')"
+                >
+                    Borrar
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div class="acciones">
+        <a class="reset descargar" href="/descargar_resultados">
+            Descargar resultados Excel
+        </a>
+
+        <a
+            class="reset"
+            href="/reset_resultados"
+            onclick="return confirm('¿Seguro que querés borrar TODOS los resultados?')"
+        >
+            Borrar resultados
+        </a>
+
+        <a
+            class="reset"
+            href="/reset_jugadores"
+            onclick="return confirm('¿Seguro que querés borrar TODOS los jugadores y resultados?')"
+        >
+            Borrar jugadores y resultados
+        </a>
+    </div>
+
+</div>
+
+</body>
+</html>
