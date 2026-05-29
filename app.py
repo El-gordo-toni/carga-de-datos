@@ -221,6 +221,7 @@ def admin():
         ))
 
         con.commit()
+        socketio.emit("actualizar_tabla")
         con.close()
 
         return redirect("/admin?ok=resultado_cargado")
@@ -409,6 +410,7 @@ def editar_jugador(id):
             """, (nombre, handicap, gross, neto, categoria, id))
 
         con.commit()
+        socketio.emit("actualizar_tabla")
         con.close()
 
         return redirect("/admin?ok=jugador_modificado")
@@ -536,6 +538,7 @@ def borrar(id):
     con = db()
     con.execute("DELETE FROM tarjetas WHERE id = ?", (id,))
     con.commit()
+    socketio.emit("actualizar_tabla")
     con.close()
 
     return redirect("/admin?ok=resultado_borrado")
@@ -550,6 +553,7 @@ def borrar_jugador(id):
     con.execute("DELETE FROM tarjetas WHERE jugador_id = ?", (id,))
     con.execute("DELETE FROM jugadores WHERE id = ?", (id,))
     con.commit()
+    socketio.emit("actualizar_tabla")
     con.close()
 
     return redirect("/admin?ok=jugador_borrado")
