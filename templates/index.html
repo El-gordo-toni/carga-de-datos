@@ -5,10 +5,16 @@
     <meta charset="UTF-8">
     <title>{{ titulo }}</title>
 
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    
     <script>
-        setInterval(function () {
+    
+        const socket = io();
+    
+        socket.on("actualizar_tabla", function () {
             location.reload();
-        }, 5000);
+        });
+    
     </script>
 
     <style>
