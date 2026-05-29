@@ -1,3 +1,6 @@
 flask
 gunicorn
 openpyxl
+flask-socketio
+gevent
+gevent-websocket
