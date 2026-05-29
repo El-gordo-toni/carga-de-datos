@@ -1,4 +1,5 @@
 from flask import Flask, request, redirect, render_template, send_file, session
+from flask_socketio import SocketIO
 import sqlite3
 import os
 from openpyxl import load_workbook, Workbook
@@ -6,6 +7,7 @@ from openpyxl.styles import Font
 from io import BytesIO
 
 app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 app.secret_key = os.environ.get("SECRET_KEY", "clave-local")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "1234")
