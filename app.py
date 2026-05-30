@@ -116,16 +116,51 @@ def obtener_categorias():
     categorias = {}
 
     for cat in ["0 a 12", "13 a 22", "23 a 36"]:
-        categorias[cat] = con.execute("""
+        lista = con.execute("""
             SELECT *
             FROM tarjetas
             WHERE categoria = ?
             ORDER BY neto ASC, gross ASC
         """, (cat,)).fetchall()
 
+        categorias[cat] = agregar_puntos(lista)
+
     con.close()
     return categorias
 
+def puntos_por_posicion(posicion):
+    puntos = {
+        1: 20,
+        2: 16,
+        3: 13,
+        4: 10,
+        5: 8,
+        6: 6,
+        7: 4,
+        8: 3,
+        9: 2,
+        10: 1
+    }
+
+    return puntos.get(posicion, 0)
+
+
+def agregar_puntos(lista):
+    resultado = []
+    neto_anterior = None
+    posicion_puntos = 0
+
+    for posicion_real, jugador in enumerate(lista, start=1):
+        jugador = dict(jugador)
+
+        if jugador["neto"] != neto_anterior:
+            posicion_puntos = posicion_real
+            neto_anterior = jugador["neto"]
+
+        jugador["puntos"] = puntos_por_posicion(posicion_puntos)
+        resultado.append(jugador)
+
+    return resultado
 
 @app.route("/")
 def index():
