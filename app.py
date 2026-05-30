@@ -148,16 +148,16 @@ def puntos_por_posicion(posicion):
 def agregar_puntos(lista):
     resultado = []
     neto_anterior = None
-    posicion_puntos = 0
+    ranking = 0
 
-    for posicion_real, jugador in enumerate(lista, start=1):
+    for jugador in lista:
         jugador = dict(jugador)
 
         if jugador["neto"] != neto_anterior:
-            posicion_puntos = posicion_real
+            ranking += 1
             neto_anterior = jugador["neto"]
 
-        jugador["puntos"] = puntos_por_posicion(posicion_puntos)
+        jugador["puntos"] = puntos_por_posicion(ranking)
         resultado.append(jugador)
 
     return resultado
