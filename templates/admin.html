@@ -386,6 +386,7 @@
                             Ida: {{ j.ida }} | Vuelta: {{ j.vuelta }}<br>
                             Gross: {{ j.gross }}<br>
                             Neto: <strong>{{ j.neto }}</strong><br><br>
+                            Puntos: <strong>{{ j.puntos }}</strong><br>
 
                             <form method="POST" action="/editar_resultado/{{ j.id }}" class="mini-form">
                                 <input type="number" name="ida" value="{{ j.ida }}" required>
