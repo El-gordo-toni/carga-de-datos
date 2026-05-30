@@ -506,14 +506,12 @@ def descargar_resultados():
     if not admin_logueado():
         return redirect("/login")
 
-    con = db()
-
-    categorias = ["0 a 12", "13 a 22", "23 a 36"]
+    categorias = obtener_categorias()
 
     wb = Workbook()
     wb.remove(wb.active)
 
-    for categoria in categorias:
+    for categoria, jugadores in categorias.items():
         ws = wb.create_sheet(title=f"Cat {categoria}")
 
         encabezados = [
@@ -524,6 +522,7 @@ def descargar_resultados():
             "Vuelta",
             "Gross",
             "Neto",
+            "Puntos",
             "Categoría"
         ]
 
@@ -531,13 +530,6 @@ def descargar_resultados():
 
         for celda in ws[1]:
             celda.font = Font(bold=True)
-
-        jugadores = con.execute("""
-            SELECT *
-            FROM tarjetas
-            WHERE categoria = ?
-            ORDER BY neto ASC, gross ASC
-        """, (categoria,)).fetchall()
 
         for i, j in enumerate(jugadores, start=1):
             ws.append([
@@ -548,6 +540,7 @@ def descargar_resultados():
                 j["vuelta"],
                 j["gross"],
                 j["neto"],
+                j["puntos"],
                 j["categoria"]
             ])
 
@@ -560,8 +553,6 @@ def descargar_resultados():
                     max_length = max(max_length, len(str(celda.value)))
 
             ws.column_dimensions[letra].width = max_length + 3
-
-    con.close()
 
     archivo = BytesIO()
     wb.save(archivo)
