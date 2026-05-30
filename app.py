@@ -495,6 +495,7 @@ def editar_resultado(id):
     """, (ida, vuelta, gross, neto, id))
 
     con.commit()
+    socketio.emit("actualizar_tabla")
     con.close()
 
     return redirect("/admin?ok=resultado_modificado")
