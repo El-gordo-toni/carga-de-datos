@@ -146,18 +146,27 @@ def puntos_por_posicion(posicion):
 
 
 def agregar_puntos(lista):
+    lista_ordenada = sorted(
+        lista,
+        key=lambda j: (
+            float(j["neto"]),
+            float(j["vuelta"]) - (float(j["handicap"]) / 2)
+        )
+    )
+
     resultado = []
     neto_anterior = None
-    ranking = 0
+    ranking_puntos = 0
 
-    for jugador in lista:
+    for posicion_visual, jugador in enumerate(lista_ordenada, start=1):
         jugador = dict(jugador)
 
-        if jugador["neto"] != neto_anterior:
-            ranking += 1
-            neto_anterior = jugador["neto"]
+        if float(jugador["neto"]) != neto_anterior:
+            ranking_puntos += 1
+            neto_anterior = float(jugador["neto"])
 
-        jugador["puntos"] = puntos_por_posicion(ranking)
+        jugador["puntos"] = puntos_por_posicion(ranking_puntos)
+
         resultado.append(jugador)
 
     return resultado
