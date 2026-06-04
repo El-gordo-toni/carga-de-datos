@@ -6,15 +6,13 @@
     <title>{{ titulo }}</title>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    
+
     <script>
-    
         const socket = io();
-    
+
         socket.on("actualizar_tabla", function () {
             location.reload();
         });
-    
     </script>
 
     <style>
@@ -60,7 +58,7 @@
             text-align: center;
             font-size: 32px;
             color: rgb(26, 31, 39);
-            margin-bottom: 5px;
+            margin-bottom: 25px;
         }
 
         .logo {
@@ -89,6 +87,21 @@
         }
 
         .categoria h2 {
+            text-align: center;
+            color: #157347;
+            margin-bottom: 15px;
+        }
+
+        .general {
+            background: white;
+            border-radius: 16px;
+            padding: 18px;
+            border: 1px solid #ddd;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+            margin-top: 25px;
+        }
+
+        .general h2 {
             text-align: center;
             color: #157347;
             margin-bottom: 15px;
@@ -145,6 +158,10 @@
 
             .subtitulo {
                 font-size: 18px;
+            }
+
+            .subtitulo2 {
+                font-size: 16px;
             }
         }
     </style>
@@ -214,10 +231,8 @@ background-attachment:fixed;
                         <td>{{ j.ida }}</td>
                         <td>{{ j.vuelta }}</td>
                         <td>{{ j.gross }}</td>
-                        <td>
-                            <strong>{{ j.neto }}</strong>
-                            <td><strong>{{ j.puntos }}</strong></td>
-                        </td>
+                        <td><strong>{{ j.neto }}</strong></td>
+                        <td><strong>{{ j.puntos }}</strong></td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -234,6 +249,46 @@ background-attachment:fixed;
         </div>
 
         {% endfor %}
+
+    </div>
+
+    <div class="general">
+
+        <h2>Tabla General</h2>
+
+        {% if general %}
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Pos</th>
+                    <th>Jugador</th>
+                    <th>Categoría</th>
+                    <th>Neto</th>
+                    <th>Puntos</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for j in general %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ j.nombre }}</td>
+                    <td>{{ j.categoria }}</td>
+                    <td><strong>{{ j.neto }}</strong></td>
+                    <td><strong>{{ j.puntos }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% else %}
+
+        <p style="text-align:center;">
+            Sin resultados cargados
+        </p>
+
+        {% endif %}
 
     </div>
 
