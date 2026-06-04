@@ -128,6 +128,19 @@ def obtener_categorias():
     con.close()
     return categorias
 
+def obtener_general():
+    con = db()
+
+    lista = con.execute("""
+        SELECT *
+        FROM tarjetas
+        ORDER BY neto ASC
+    """).fetchall()
+
+    con.close()
+
+    return agregar_puntos(lista)
+
 def puntos_por_posicion(posicion):
     puntos = {
         1: 20,
