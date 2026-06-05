@@ -304,6 +304,7 @@ def admin():
         fondo=config["fondo"],
         jugadores=jugadores,
         categorias=obtener_categorias(),
+        general=obtener_general(),
         error=error,
         ok=ok
     )
