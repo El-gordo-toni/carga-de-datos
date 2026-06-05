@@ -420,6 +420,53 @@
 
     </div>
 
+    <h2>Tabla General</h2>
+
+<div class="categoria">
+
+    {% if general %}
+
+    <table>
+
+        <thead>
+            <tr>
+                <th>Pos</th>
+                <th>Jugador</th>
+                <th>Categoría</th>
+                <th>Neto</th>
+                <th>Puntos</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            {% for j in general %}
+
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ j.nombre }}</td>
+                <td>{{ j.categoria }}</td>
+                <td><strong>{{ j.neto }}</strong></td>
+                <td><strong>{{ j.puntos }}</strong></td>
+            </tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+    {% else %}
+
+    <p style="text-align:center;">
+        Sin resultados cargados
+    </p>
+
+    {% endif %}
+
+</div>
+
+<br>
     <h2>Modificar jugadores</h2>
 
     <table>
