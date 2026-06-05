@@ -191,6 +191,7 @@ def index():
     return render_template(
         "index.html",
         categorias=obtener_categorias(),
+        general=obtener_general(),
         titulo=config["titulo"],
         subtitulo=config["subtitulo"],
         subtitulo2=config["subtitulo2"],
