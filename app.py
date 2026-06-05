@@ -568,7 +568,8 @@ def descargar_resultados():
                     max_length = max(max_length, len(str(celda.value)))
 
             ws.column_dimensions[letra].width = max_length + 3
-            ws = wb.create_sheet(title="General")
+
+    ws = wb.create_sheet(title="General")
 
     encabezados = [
         "Puesto",
@@ -601,6 +602,7 @@ def descargar_resultados():
                 max_length = max(max_length, len(str(celda.value)))
 
         ws.column_dimensions[letra].width = max_length + 3
+
     archivo = BytesIO()
     wb.save(archivo)
     archivo.seek(0)
