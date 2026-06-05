@@ -568,7 +568,39 @@ def descargar_resultados():
                     max_length = max(max_length, len(str(celda.value)))
 
             ws.column_dimensions[letra].width = max_length + 3
+            ws = wb.create_sheet(title="General")
 
+    encabezados = [
+        "Puesto",
+        "Nombre",
+        "Categoría",
+        "Neto",
+        "Puntos"
+    ]
+
+    ws.append(encabezados)
+
+    for celda in ws[1]:
+        celda.font = Font(bold=True)
+
+    for i, j in enumerate(obtener_general(), start=1):
+        ws.append([
+            i,
+            j["nombre"],
+            j["categoria"],
+            j["neto"],
+            j["puntos"]
+        ])
+
+    for columna in ws.columns:
+        max_length = 0
+        letra = columna[0].column_letter
+
+        for celda in columna:
+            if celda.value:
+                max_length = max(max_length, len(str(celda.value)))
+
+        ws.column_dimensions[letra].width = max_length + 3
     archivo = BytesIO()
     wb.save(archivo)
     archivo.seek(0)
