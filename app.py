@@ -237,15 +237,11 @@ def admin():
 
         con = db()
 
-        jugadores = con.execute("""
+        jugador = con.execute("""
             SELECT *
             FROM jugadores
-            WHERE id NOT IN (
-                SELECT jugador_id
-                FROM tarjetas
-            )
-            ORDER BY nombre ASC
-        """).fetchall()
+            WHERE id = ?
+        """, (jugador_id,)).fetchone()
 
         if not jugador:
             con.close()
@@ -291,9 +287,12 @@ def admin():
     con = db()
 
     jugadores = con.execute("""
-        SELECT *
+        SELECT jugadores.*
         FROM jugadores
-        ORDER BY nombre ASC
+        LEFT JOIN tarjetas
+        ON jugadores.id = tarjetas.jugador_id
+        WHERE tarjetas.jugador_id IS NULL
+        ORDER BY jugadores.nombre ASC
     """).fetchall()
 
     con.close()
