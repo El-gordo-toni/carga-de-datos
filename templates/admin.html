@@ -428,7 +428,7 @@
     <h2>Cargar Match por Equipos</h2>
 
     <form method="POST" action="/agregar_match_equipo" class="form-resultado">
-        <input type="number" name="numero_match" placeholder="Match Nº" min="1" required>
+        <input type="text" value="Match Nº {{ proximo_match }}" disabled>
 
         <select name="jugador_team22_id" required>
             <option value="">Jugador Team 22</option>
