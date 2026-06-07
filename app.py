@@ -400,7 +400,7 @@ def admin():
     con.close()
 
     config = obtener_configuracion()
-
+    team22, aguilas, team22_todos, aguilas_todos = obtener_jugadores_equipos()
     return render_template(
         "admin.html",
         titulo=config["titulo"],
@@ -415,6 +415,14 @@ def admin():
         aguilas=obtener_jugadores_equipos()[1],
         matches_equipos=obtener_matches_equipos(),
         proximo_match=obtener_proximo_numero_match(),
+        team22=team22,
+        aguilas=aguilas,
+        team22_todos=team22_todos,
+        aguilas_todos=aguilas_todos,
+        matches_equipos=obtener_matches_equipos(),
+        proximo_match=obtener_proximo_numero_match(),
+        comodin_team22_existe=existe_comodin("Team 22"),
+        comodin_aguilas_existe=existe_comodin("Águilas"),
         error=error,
         ok=ok
     )
@@ -624,6 +632,7 @@ def editar_resultado(id):
 
     return redirect("/admin?ok=resultado_modificado")
 
+
 @app.route("/agregar_jugador_equipo", methods=["POST"])
 def agregar_jugador_equipo():
     if not admin_logueado():
@@ -631,6 +640,7 @@ def agregar_jugador_equipo():
 
     nombre = request.form["nombre"].strip()
     equipo = request.form["equipo"].strip()
+    comodin = 1 if request.form.get("comodin") == "1" else 0
 
     if not nombre:
         return redirect("/admin?error=nombre_vacio")
@@ -638,12 +648,15 @@ def agregar_jugador_equipo():
     if equipo not in ["Team 22", "Águilas"]:
         return redirect("/admin?error=equipo_invalido")
 
+    if comodin == 1 and existe_comodin(equipo):
+        return redirect("/admin?error=comodin_existente")
+
     con = db()
 
     con.execute("""
-        INSERT INTO jugadores_equipos (nombre, equipo)
-        VALUES (?, ?)
-    """, (nombre, equipo))
+        INSERT INTO jugadores_equipos (nombre, equipo, comodin)
+        VALUES (?, ?, ?)
+    """, (nombre, equipo, comodin))
 
     con.commit()
     socketio.emit("actualizar_tabla")
@@ -677,21 +690,14 @@ def borrar_jugador_equipo(id):
     return redirect("/admin?ok=jugador_equipo_borrado")
 
 
-@app.route("/agregar_match_equipo", methods=["POST"])
-def agregar_match_equipo():
+@app.route("/crear_cruce_equipo", methods=["POST"])
+def crear_cruce_equipo():
     if not admin_logueado():
         return redirect("/login")
 
     numero_match = obtener_proximo_numero_match()
     jugador_team22_id = int(request.form["jugador_team22_id"])
     jugador_aguilas_id = int(request.form["jugador_aguilas_id"])
-    puntos_partido_team22 = float(request.form["puntos_partido_team22"])
-    puntos_partido_aguilas = float(request.form["puntos_partido_aguilas"])
-
-    puntos_tabla_team22, puntos_tabla_aguilas, resultado = calcular_resultado_match(
-        puntos_partido_team22,
-        puntos_partido_aguilas
-    )
 
     con = db()
 
@@ -701,29 +707,81 @@ def agregar_match_equipo():
             numero_match,
             jugador_team22_id,
             jugador_aguilas_id,
-            puntos_partido_team22,
-            puntos_partido_aguilas,
-            puntos_tabla_team22,
-            puntos_tabla_aguilas,
             resultado
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, 'Pendiente')
     """, (
         numero_match,
         jugador_team22_id,
-        jugador_aguilas_id,
-        puntos_partido_team22,
-        puntos_partido_aguilas,
-        puntos_tabla_team22,
-        puntos_tabla_aguilas,
-        resultado
+        jugador_aguilas_id
     ))
 
     con.commit()
     socketio.emit("actualizar_tabla")
     con.close()
 
-    return redirect("/admin?ok=match_equipo_agregado")
+    return redirect("/admin?ok=cruce_equipo_creado")
+
+
+@app.route("/cargar_resultado_match_equipo", methods=["POST"])
+def cargar_resultado_match_equipo():
+    if not admin_logueado():
+        return redirect("/login")
+
+    match_id = int(request.form["match_id"])
+    puntos_partido_team22 = float(request.form["puntos_partido_team22"])
+    puntos_partido_aguilas = float(request.form["puntos_partido_aguilas"])
+
+    con = db()
+
+    match = con.execute("""
+        SELECT
+            m.*,
+            j22.comodin AS comodin_team22,
+            ja.comodin AS comodin_aguilas
+        FROM matches_equipos m
+        JOIN jugadores_equipos j22
+            ON m.jugador_team22_id = j22.id
+        JOIN jugadores_equipos ja
+            ON m.jugador_aguilas_id = ja.id
+        WHERE m.id = ?
+    """, (match_id,)).fetchone()
+
+    if not match:
+        con.close()
+        return redirect("/admin?error=match_no_existe")
+
+    puntos_tabla_team22, puntos_tabla_aguilas, resultado = calcular_resultado_match(
+        puntos_partido_team22,
+        puntos_partido_aguilas,
+        match["comodin_team22"] == 1,
+        match["comodin_aguilas"] == 1
+    )
+
+    con.execute("""
+        UPDATE matches_equipos
+        SET
+            puntos_partido_team22 = ?,
+            puntos_partido_aguilas = ?,
+            puntos_tabla_team22 = ?,
+            puntos_tabla_aguilas = ?,
+            resultado = ?,
+            resultado_cargado = 1
+        WHERE id = ?
+    """, (
+        puntos_partido_team22,
+        puntos_partido_aguilas,
+        puntos_tabla_team22,
+        puntos_tabla_aguilas,
+        resultado,
+        match_id
+    ))
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redirect("/admin?ok=resultado_match_cargado")
 
 
 @app.route("/editar_match_equipo/<int:id>", methods=["POST"])
@@ -731,29 +789,46 @@ def editar_match_equipo(id):
     if not admin_logueado():
         return redirect("/login")
 
-    numero_match = int(request.form["numero_match"])
     puntos_partido_team22 = float(request.form["puntos_partido_team22"])
     puntos_partido_aguilas = float(request.form["puntos_partido_aguilas"])
 
+    con = db()
+
+    match = con.execute("""
+        SELECT
+            m.*,
+            j22.comodin AS comodin_team22,
+            ja.comodin AS comodin_aguilas
+        FROM matches_equipos m
+        JOIN jugadores_equipos j22
+            ON m.jugador_team22_id = j22.id
+        JOIN jugadores_equipos ja
+            ON m.jugador_aguilas_id = ja.id
+        WHERE m.id = ?
+    """, (id,)).fetchone()
+
+    if not match:
+        con.close()
+        return redirect("/admin?error=match_no_existe")
+
     puntos_tabla_team22, puntos_tabla_aguilas, resultado = calcular_resultado_match(
         puntos_partido_team22,
-        puntos_partido_aguilas
+        puntos_partido_aguilas,
+        match["comodin_team22"] == 1,
+        match["comodin_aguilas"] == 1
     )
-
-    con = db()
 
     con.execute("""
         UPDATE matches_equipos
         SET
-            numero_match = ?,
             puntos_partido_team22 = ?,
             puntos_partido_aguilas = ?,
             puntos_tabla_team22 = ?,
             puntos_tabla_aguilas = ?,
-            resultado = ?
+            resultado = ?,
+            resultado_cargado = 1
         WHERE id = ?
     """, (
-        numero_match,
         puntos_partido_team22,
         puntos_partido_aguilas,
         puntos_tabla_team22,
