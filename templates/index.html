@@ -291,7 +291,59 @@ background-attachment:fixed;
         {% endif %}
 
     </div>
+<div class="general">
 
+    <h2>Match por Equipos</h2>
+
+    {% if matches_equipos.matches %}
+
+    <table>
+        <thead>
+            <tr>
+                <th>Match</th>
+                <th>Team 22</th>
+                <th>Pts</th>
+                <th>VS</th>
+                <th>Águilas</th>
+                <th>Pts</th>
+                <th>Team 22</th>
+                <th>Águilas</th>
+                <th>Resultado</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for m in matches_equipos.matches %}
+            <tr>
+                <td>{{ m.numero_match }}</td>
+                <td>{{ m.jugador_team22 }}</td>
+                <td>{{ m.puntos_partido_team22 }}</td>
+                <td>VS</td>
+                <td>{{ m.jugador_aguilas }}</td>
+                <td>{{ m.puntos_partido_aguilas }}</td>
+                <td><strong>{{ m.puntos_tabla_team22 }}</strong></td>
+                <td><strong>{{ m.puntos_tabla_aguilas }}</strong></td>
+                <td>{{ m.resultado }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>
+        Team 22: {{ matches_equipos.total_team22 }}
+        |
+        Águilas: {{ matches_equipos.total_aguilas }}
+    </h2>
+
+    <h2>{{ matches_equipos.ganador }}</h2>
+
+    {% else %}
+
+    <p style="text-align:center;">Sin matches cargados</p>
+
+    {% endif %}
+
+</div>
     <div class="admin-link">
         <a href="/admin">Panel admin</a>
     </div>
