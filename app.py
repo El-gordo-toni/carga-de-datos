@@ -177,13 +177,21 @@ def obtener_jugadores_equipos():
         SELECT *
         FROM jugadores_equipos
         WHERE equipo = 'Team 22'
+        AND id NOT IN (
+            SELECT jugador_team22_id
+            FROM matches_equipos
+        )
         ORDER BY nombre ASC
     """).fetchall()
-
+    
     aguilas = con.execute("""
         SELECT *
         FROM jugadores_equipos
         WHERE equipo = 'Águilas'
+        AND id NOT IN (
+            SELECT jugador_aguilas_id
+            FROM matches_equipos
+        )
         ORDER BY nombre ASC
     """).fetchall()
 
