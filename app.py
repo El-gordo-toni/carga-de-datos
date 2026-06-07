@@ -79,7 +79,27 @@ def init_db():
             VALUES
             (1, 'Torneo de Golf', 'Tabla de posiciones por categoría', 'Resultados oficiales', '', '')
         """)
-
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS jugadores_equipos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            equipo TEXT NOT NULL
+        )
+    """)
+    
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS matches_equipos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            numero_match INTEGER NOT NULL,
+            jugador_team22_id INTEGER NOT NULL,
+            jugador_aguilas_id INTEGER NOT NULL,
+            puntos_partido_team22 REAL NOT NULL,
+            puntos_partido_aguilas REAL NOT NULL,
+            puntos_tabla_team22 REAL NOT NULL,
+            puntos_tabla_aguilas REAL NOT NULL,
+            resultado TEXT NOT NULL
+        )
+    """)
     con.commit()
     con.close()
 
@@ -140,7 +160,78 @@ def obtener_general():
     con.close()
 
     return agregar_puntos(lista)
+def calcular_resultado_match(puntos_team22, puntos_aguilas):
+    if puntos_team22 > puntos_aguilas:
+        return 1, 0, "Gana Team 22"
 
+    if puntos_aguilas > puntos_team22:
+        return 0, 1, "Gana Águilas"
+
+    return 0.5, 0.5, "Empate"
+
+
+def obtener_jugadores_equipos():
+    con = db()
+
+    team22 = con.execute("""
+        SELECT *
+        FROM jugadores_equipos
+        WHERE equipo = 'Team 22'
+        ORDER BY nombre ASC
+    """).fetchall()
+
+    aguilas = con.execute("""
+        SELECT *
+        FROM jugadores_equipos
+        WHERE equipo = 'Águilas'
+        ORDER BY nombre ASC
+    """).fetchall()
+
+    con.close()
+
+    return team22, aguilas
+
+
+def obtener_matches_equipos():
+    con = db()
+
+    matches = con.execute("""
+        SELECT
+            m.id,
+            m.numero_match,
+            j22.nombre AS jugador_team22,
+            ja.nombre AS jugador_aguilas,
+            m.puntos_partido_team22,
+            m.puntos_partido_aguilas,
+            m.puntos_tabla_team22,
+            m.puntos_tabla_aguilas,
+            m.resultado
+        FROM matches_equipos m
+        JOIN jugadores_equipos j22
+            ON m.jugador_team22_id = j22.id
+        JOIN jugadores_equipos ja
+            ON m.jugador_aguilas_id = ja.id
+        ORDER BY m.numero_match ASC
+    """).fetchall()
+
+    con.close()
+
+    total_team22 = sum(float(m["puntos_tabla_team22"]) for m in matches)
+    total_aguilas = sum(float(m["puntos_tabla_aguilas"]) for m in matches)
+
+    if total_team22 > total_aguilas:
+        ganador = "Gana Team 22"
+    elif total_aguilas > total_team22:
+        ganador = "Gana Águilas"
+    else:
+        ganador = "Empate"
+
+    return {
+        "matches": matches,
+        "total_team22": total_team22,
+        "total_aguilas": total_aguilas,
+        "ganador": ganador
+    }
 def puntos_por_posicion(posicion):
     puntos = {
         1: 20,
@@ -192,6 +283,7 @@ def index():
         "index.html",
         categorias=obtener_categorias(),
         general=obtener_general(),
+        matches_equipos=obtener_matches_equipos(),
         titulo=config["titulo"],
         subtitulo=config["subtitulo"],
         subtitulo2=config["subtitulo2"],
@@ -309,6 +401,9 @@ def admin():
         jugadores=jugadores,
         categorias=obtener_categorias(),
         general=obtener_general(),
+        team22=obtener_jugadores_equipos()[0],
+        aguilas=obtener_jugadores_equipos()[1],
+        matches_equipos=obtener_matches_equipos(),
         error=error,
         ok=ok
     )
@@ -518,6 +613,184 @@ def editar_resultado(id):
 
     return redirect("/admin?ok=resultado_modificado")
 
+@app.route("/agregar_jugador_equipo", methods=["POST"])
+def agregar_jugador_equipo():
+    if not admin_logueado():
+        return redirect("/login")
+
+    nombre = request.form["nombre"].strip()
+    equipo = request.form["equipo"].strip()
+
+    if not nombre:
+        return redirect("/admin?error=nombre_vacio")
+
+    if equipo not in ["Team 22", "Águilas"]:
+        return redirect("/admin?error=equipo_invalido")
+
+    con = db()
+
+    con.execute("""
+        INSERT INTO jugadores_equipos (nombre, equipo)
+        VALUES (?, ?)
+    """, (nombre, equipo))
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redirect("/admin?ok=jugador_equipo_agregado")
+
+
+@app.route("/borrar_jugador_equipo/<int:id>")
+def borrar_jugador_equipo(id):
+    if not admin_logueado():
+        return redirect("/login")
+
+    con = db()
+
+    con.execute("""
+        DELETE FROM matches_equipos
+        WHERE jugador_team22_id = ?
+        OR jugador_aguilas_id = ?
+    """, (id, id))
+
+    con.execute("""
+        DELETE FROM jugadores_equipos
+        WHERE id = ?
+    """, (id,))
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redirect("/admin?ok=jugador_equipo_borrado")
+
+
+@app.route("/agregar_match_equipo", methods=["POST"])
+def agregar_match_equipo():
+    if not admin_logueado():
+        return redirect("/login")
+
+    numero_match = int(request.form["numero_match"])
+    jugador_team22_id = int(request.form["jugador_team22_id"])
+    jugador_aguilas_id = int(request.form["jugador_aguilas_id"])
+    puntos_partido_team22 = float(request.form["puntos_partido_team22"])
+    puntos_partido_aguilas = float(request.form["puntos_partido_aguilas"])
+
+    puntos_tabla_team22, puntos_tabla_aguilas, resultado = calcular_resultado_match(
+        puntos_partido_team22,
+        puntos_partido_aguilas
+    )
+
+    con = db()
+
+    con.execute("""
+        INSERT INTO matches_equipos
+        (
+            numero_match,
+            jugador_team22_id,
+            jugador_aguilas_id,
+            puntos_partido_team22,
+            puntos_partido_aguilas,
+            puntos_tabla_team22,
+            puntos_tabla_aguilas,
+            resultado
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        numero_match,
+        jugador_team22_id,
+        jugador_aguilas_id,
+        puntos_partido_team22,
+        puntos_partido_aguilas,
+        puntos_tabla_team22,
+        puntos_tabla_aguilas,
+        resultado
+    ))
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redirect("/admin?ok=match_equipo_agregado")
+
+
+@app.route("/editar_match_equipo/<int:id>", methods=["POST"])
+def editar_match_equipo(id):
+    if not admin_logueado():
+        return redirect("/login")
+
+    numero_match = int(request.form["numero_match"])
+    puntos_partido_team22 = float(request.form["puntos_partido_team22"])
+    puntos_partido_aguilas = float(request.form["puntos_partido_aguilas"])
+
+    puntos_tabla_team22, puntos_tabla_aguilas, resultado = calcular_resultado_match(
+        puntos_partido_team22,
+        puntos_partido_aguilas
+    )
+
+    con = db()
+
+    con.execute("""
+        UPDATE matches_equipos
+        SET
+            numero_match = ?,
+            puntos_partido_team22 = ?,
+            puntos_partido_aguilas = ?,
+            puntos_tabla_team22 = ?,
+            puntos_tabla_aguilas = ?,
+            resultado = ?
+        WHERE id = ?
+    """, (
+        numero_match,
+        puntos_partido_team22,
+        puntos_partido_aguilas,
+        puntos_tabla_team22,
+        puntos_tabla_aguilas,
+        resultado,
+        id
+    ))
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redirect("/admin?ok=match_equipo_modificado")
+
+
+@app.route("/borrar_match_equipo/<int:id>")
+def borrar_match_equipo(id):
+    if not admin_logueado():
+        return redirect("/login")
+
+    con = db()
+
+    con.execute("""
+        DELETE FROM matches_equipos
+        WHERE id = ?
+    """, (id,))
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redirect("/admin?ok=match_equipo_borrado")
+
+
+@app.route("/reset_matches_equipos")
+def reset_matches_equipos():
+    if not admin_logueado():
+        return redirect("/login")
+
+    con = db()
+
+    con.execute("DELETE FROM matches_equipos")
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redirect("/admin?ok=matches_equipos_borrados")
 
 @app.route("/descargar_resultados")
 def descargar_resultados():
