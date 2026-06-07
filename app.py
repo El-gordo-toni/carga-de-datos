@@ -133,115 +133,6 @@ def obtener_configuracion():
     }
 
 
-def obtener_categorias():
-    con = db()
-    categorias = {}
-
-    for cat in ["0 a 12", "13 a 22", "23 a 36"]:
-        lista = con.execute("""
-            SELECT *
-            FROM tarjetas
-            WHERE categoria = ?
-            ORDER BY neto ASC, gross ASC
-        """, (cat,)).fetchall()
-
-        categorias[cat] = agregar_puntos(lista)
-
-    con.close()
-    return categorias
-
-def obtener_general():
-    con = db()
-
-    lista = con.execute("""
-        SELECT *
-        FROM tarjetas
-        ORDER BY neto ASC
-    """).fetchall()
-
-    con.close()
-
-    return agregar_puntos(lista)
-def calcular_resultado_match(puntos_team22, puntos_aguilas):
-    if puntos_team22 > puntos_aguilas:
-        return 1, 0, "Gana Team 22"
-
-    if puntos_aguilas > puntos_team22:
-        return 0, 1, "Gana Águilas"
-
-    return 0.5, 0.5, "Empate"
-
-
-def obtener_jugadores_equipos():
-    con = db()
-
-    team22 = con.execute("""
-        SELECT *
-        FROM jugadores_equipos
-        WHERE equipo = 'Team 22'
-        AND id NOT IN (
-            SELECT jugador_team22_id
-            FROM matches_equipos
-        )
-        ORDER BY nombre ASC
-    """).fetchall()
-    
-    aguilas = con.execute("""
-        SELECT *
-        FROM jugadores_equipos
-        WHERE equipo = 'Águilas'
-        AND id NOT IN (
-            SELECT jugador_aguilas_id
-            FROM matches_equipos
-        )
-        ORDER BY nombre ASC
-    """).fetchall()
-
-    con.close()
-
-    return team22, aguilas
-
-
-def obtener_matches_equipos():
-    con = db()
-
-    matches = con.execute("""
-        SELECT
-            m.id,
-            m.numero_match,
-            j22.nombre AS jugador_team22,
-            ja.nombre AS jugador_aguilas,
-            m.puntos_partido_team22,
-            m.puntos_partido_aguilas,
-            m.puntos_tabla_team22,
-            m.puntos_tabla_aguilas,
-            m.resultado
-        FROM matches_equipos m
-        JOIN jugadores_equipos j22
-            ON m.jugador_team22_id = j22.id
-        JOIN jugadores_equipos ja
-            ON m.jugador_aguilas_id = ja.id
-        ORDER BY m.numero_match ASC
-    """).fetchall()
-
-    con.close()
-
-    total_team22 = sum(float(m["puntos_tabla_team22"]) for m in matches)
-    total_aguilas = sum(float(m["puntos_tabla_aguilas"]) for m in matches)
-
-    if total_team22 > total_aguilas:
-        ganador = "Gana Team 22"
-    elif total_aguilas > total_team22:
-        ganador = "Gana Águilas"
-    else:
-        ganador = "Empate"
-
-    return {
-        "matches": matches,
-        "total_team22": total_team22,
-        "total_aguilas": total_aguilas,
-        "ganador": ganador
-    }
 def puntos_por_posicion(posicion):
     puntos = {
         1: 20,
@@ -272,7 +163,7 @@ def agregar_puntos(lista):
     neto_anterior = None
     ranking_puntos = 0
 
-    for posicion_visual, jugador in enumerate(lista_ordenada, start=1):
+    for jugador in lista_ordenada:
         jugador = dict(jugador)
 
         if float(jugador["neto"]) != neto_anterior:
@@ -284,6 +175,198 @@ def agregar_puntos(lista):
         resultado.append(jugador)
 
     return resultado
+
+
+def obtener_categorias():
+    con = db()
+    categorias = {}
+
+    for cat in ["0 a 12", "13 a 22", "23 a 36"]:
+        lista = con.execute("""
+            SELECT *
+            FROM tarjetas
+            WHERE categoria = ?
+            ORDER BY neto ASC
+        """, (cat,)).fetchall()
+
+        categorias[cat] = agregar_puntos(lista)
+
+    con.close()
+    return categorias
+
+
+def obtener_general():
+    con = db()
+
+    lista = con.execute("""
+        SELECT *
+        FROM tarjetas
+        ORDER BY neto ASC
+    """).fetchall()
+
+    con.close()
+
+    return agregar_puntos(lista)
+
+
+def existe_comodin(equipo):
+    con = db()
+
+    existe = con.execute("""
+        SELECT id
+        FROM jugadores_equipos
+        WHERE equipo = ?
+        AND comodin = 1
+    """, (equipo,)).fetchone()
+
+    con.close()
+
+    return existe is not None
+
+
+def calcular_resultado_match(puntos_team22, puntos_aguilas, comodin_team22, comodin_aguilas):
+    comodin_en_juego = comodin_team22 or comodin_aguilas
+
+    if puntos_team22 > puntos_aguilas:
+        if comodin_en_juego:
+            return 2, 0, "Gana Team 22"
+        return 1, 0, "Gana Team 22"
+
+    if puntos_aguilas > puntos_team22:
+        if comodin_en_juego:
+            return 0, 2, "Gana Águilas"
+        return 0, 1, "Gana Águilas"
+
+    if comodin_en_juego:
+        return 1, 1, "Empate"
+
+    return 0.5, 0.5, "Empate"
+
+
+def obtener_proximo_numero_match():
+    con = db()
+
+    ultimo = con.execute("""
+        SELECT MAX(numero_match) AS ultimo
+        FROM matches_equipos
+    """).fetchone()
+
+    con.close()
+
+    if ultimo and ultimo["ultimo"]:
+        return int(ultimo["ultimo"]) + 1
+
+    return 1
+
+
+def obtener_jugadores_equipos():
+    con = db()
+
+    team22 = con.execute("""
+        SELECT *
+        FROM jugadores_equipos
+        WHERE equipo = 'Team 22'
+        AND id NOT IN (
+            SELECT jugador_team22_id
+            FROM matches_equipos
+        )
+        ORDER BY nombre ASC
+    """).fetchall()
+
+    aguilas = con.execute("""
+        SELECT *
+        FROM jugadores_equipos
+        WHERE equipo = 'Águilas'
+        AND id NOT IN (
+            SELECT jugador_aguilas_id
+            FROM matches_equipos
+        )
+        ORDER BY nombre ASC
+    """).fetchall()
+
+    team22_todos = con.execute("""
+        SELECT *
+        FROM jugadores_equipos
+        WHERE equipo = 'Team 22'
+        ORDER BY nombre ASC
+    """).fetchall()
+
+    aguilas_todos = con.execute("""
+        SELECT *
+        FROM jugadores_equipos
+        WHERE equipo = 'Águilas'
+        ORDER BY nombre ASC
+    """).fetchall()
+
+    con.close()
+
+    return team22, aguilas, team22_todos, aguilas_todos
+
+
+def obtener_matches_equipos():
+    con = db()
+
+    matches = con.execute("""
+        SELECT
+            m.id,
+            m.numero_match,
+            m.jugador_team22_id,
+            m.jugador_aguilas_id,
+            j22.nombre AS jugador_team22,
+            j22.comodin AS comodin_team22,
+            ja.nombre AS jugador_aguilas,
+            ja.comodin AS comodin_aguilas,
+            m.puntos_partido_team22,
+            m.puntos_partido_aguilas,
+            m.puntos_tabla_team22,
+            m.puntos_tabla_aguilas,
+            m.resultado,
+            m.resultado_cargado
+        FROM matches_equipos m
+        JOIN jugadores_equipos j22
+            ON m.jugador_team22_id = j22.id
+        JOIN jugadores_equipos ja
+            ON m.jugador_aguilas_id = ja.id
+        ORDER BY m.numero_match ASC
+    """).fetchall()
+
+    pendientes = con.execute("""
+        SELECT
+            m.id,
+            m.numero_match,
+            j22.nombre AS jugador_team22,
+            j22.comodin AS comodin_team22,
+            ja.nombre AS jugador_aguilas,
+            ja.comodin AS comodin_aguilas
+        FROM matches_equipos m
+        JOIN jugadores_equipos j22
+            ON m.jugador_team22_id = j22.id
+        JOIN jugadores_equipos ja
+            ON m.jugador_aguilas_id = ja.id
+        WHERE m.resultado_cargado = 0
+        ORDER BY m.numero_match ASC
+    """).fetchall()
+
+    con.close()
+
+    total_team22 = sum(float(m["puntos_tabla_team22"]) for m in matches)
+    total_aguilas = sum(float(m["puntos_tabla_aguilas"]) for m in matches)
+
+    if total_team22 > total_aguilas:
+        ganador = "Gana Team 22"
+    elif total_aguilas > total_team22:
+        ganador = "Gana Águilas"
+    else:
+        ganador = "Empate"
+
+    return {
+        "matches": matches,
+        "pendientes": pendientes,
+        "total_team22": total_team22,
+        "total_aguilas": total_aguilas,
+        "ganador": ganador
+    }
+
 
 @app.route("/")
 def index():
@@ -400,7 +483,9 @@ def admin():
     con.close()
 
     config = obtener_configuracion()
+
     team22, aguilas, team22_todos, aguilas_todos = obtener_jugadores_equipos()
+
     return render_template(
         "admin.html",
         titulo=config["titulo"],
@@ -411,10 +496,6 @@ def admin():
         jugadores=jugadores,
         categorias=obtener_categorias(),
         general=obtener_general(),
-        team22=obtener_jugadores_equipos()[0],
-        aguilas=obtener_jugadores_equipos()[1],
-        matches_equipos=obtener_matches_equipos(),
-        proximo_match=obtener_proximo_numero_match(),
         team22=team22,
         aguilas=aguilas,
         team22_todos=team22_todos,
@@ -426,7 +507,6 @@ def admin():
         error=error,
         ok=ok
     )
-
 
 @app.route("/guardar_configuracion", methods=["POST"])
 def guardar_configuracion():
