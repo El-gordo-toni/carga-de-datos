@@ -83,7 +83,8 @@ def init_db():
         CREATE TABLE IF NOT EXISTS jugadores_equipos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
-            equipo TEXT NOT NULL
+            equipo TEXT NOT NULL,
+            comodin INTEGER NOT NULL DEFAULT 0
         )
     """)
     
@@ -93,11 +94,12 @@ def init_db():
             numero_match INTEGER NOT NULL,
             jugador_team22_id INTEGER NOT NULL,
             jugador_aguilas_id INTEGER NOT NULL,
-            puntos_partido_team22 REAL NOT NULL,
-            puntos_partido_aguilas REAL NOT NULL,
-            puntos_tabla_team22 REAL NOT NULL,
-            puntos_tabla_aguilas REAL NOT NULL,
-            resultado TEXT NOT NULL
+            puntos_partido_team22 REAL DEFAULT 0,
+            puntos_partido_aguilas REAL DEFAULT 0,
+            puntos_tabla_team22 REAL DEFAULT 0,
+            puntos_tabla_aguilas REAL DEFAULT 0,
+            resultado TEXT DEFAULT 'Pendiente',
+            resultado_cargado INTEGER NOT NULL DEFAULT 0
         )
     """)
     con.commit()
