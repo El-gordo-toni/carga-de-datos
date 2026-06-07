@@ -362,7 +362,189 @@
             <button type="submit">Cargar resultado</button>
         </form>
     </div>
+    <div class="bloque">
+    <h2>Jugadores por Equipo</h2>
 
+    <form method="POST" action="/agregar_jugador_equipo" class="form-manual">
+        <input type="text" name="nombre" placeholder="Nombre del jugador" required>
+
+        <select name="equipo" required>
+            <option value="">Seleccionar equipo</option>
+            <option value="Team 22">Team 22</option>
+            <option value="Águilas">Águilas</option>
+        </select>
+
+        <button type="submit">Agregar jugador</button>
+    </form>
+
+    <div class="listas">
+        <div class="categoria">
+            <h3>Team 22</h3>
+
+            {% if team22 %}
+                {% for j in team22 %}
+                    <div class="jugador">
+                        <strong>{{ j.nombre }}</strong><br><br>
+
+                        <a
+                            class="borrar"
+                            href="/borrar_jugador_equipo/{{ j.id }}"
+                            onclick="return confirm('¿Seguro que querés borrar este jugador del equipo?')"
+                        >
+                            Borrar
+                        </a>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>Sin jugadores cargados</p>
+            {% endif %}
+        </div>
+
+        <div class="categoria">
+            <h3>Águilas</h3>
+
+            {% if aguilas %}
+                {% for j in aguilas %}
+                    <div class="jugador">
+                        <strong>{{ j.nombre }}</strong><br><br>
+
+                        <a
+                            class="borrar"
+                            href="/borrar_jugador_equipo/{{ j.id }}"
+                            onclick="return confirm('¿Seguro que querés borrar este jugador del equipo?')"
+                        >
+                            Borrar
+                        </a>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>Sin jugadores cargados</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="bloque">
+    <h2>Cargar Match por Equipos</h2>
+
+    <form method="POST" action="/agregar_match_equipo" class="form-resultado">
+        <input type="number" name="numero_match" placeholder="Match Nº" min="1" required>
+
+        <select name="jugador_team22_id" required>
+            <option value="">Jugador Team 22</option>
+            {% for j in team22 %}
+                <option value="{{ j.id }}">{{ j.nombre }}</option>
+            {% endfor %}
+        </select>
+
+        <input type="number" step="0.5" name="puntos_partido_team22" placeholder="Pts Team 22" required>
+
+        <select name="jugador_aguilas_id" required>
+            <option value="">Jugador Águilas</option>
+            {% for j in aguilas %}
+                <option value="{{ j.id }}">{{ j.nombre }}</option>
+            {% endfor %}
+        </select>
+
+        <input type="number" step="0.5" name="puntos_partido_aguilas" placeholder="Pts Águilas" required>
+
+        <button type="submit">Guardar match</button>
+    </form>
+</div>
+
+<h2>Match por Equipos</h2>
+
+<div class="categoria">
+
+    {% if matches_equipos.matches %}
+
+    <table>
+        <thead>
+            <tr>
+                <th>Match</th>
+                <th>Team 22</th>
+                <th>Pts</th>
+                <th>VS</th>
+                <th>Águilas</th>
+                <th>Pts</th>
+                <th>Team 22</th>
+                <th>Águilas</th>
+                <th>Resultado</th>
+                <th>Modificar</th>
+                <th>Borrar</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for m in matches_equipos.matches %}
+            <tr>
+                <form method="POST" action="/editar_match_equipo/{{ m.id }}">
+                    <td>
+                        <input type="number" name="numero_match" value="{{ m.numero_match }}" style="width:70px;" required>
+                    </td>
+
+                    <td>{{ m.jugador_team22 }}</td>
+
+                    <td>
+                        <input type="number" step="0.5" name="puntos_partido_team22" value="{{ m.puntos_partido_team22 }}" style="width:70px;" required>
+                    </td>
+
+                    <td>VS</td>
+
+                    <td>{{ m.jugador_aguilas }}</td>
+
+                    <td>
+                        <input type="number" step="0.5" name="puntos_partido_aguilas" value="{{ m.puntos_partido_aguilas }}" style="width:70px;" required>
+                    </td>
+
+                    <td><strong>{{ m.puntos_tabla_team22 }}</strong></td>
+                    <td><strong>{{ m.puntos_tabla_aguilas }}</strong></td>
+                    <td>{{ m.resultado }}</td>
+
+                    <td>
+                        <button type="submit">Guardar</button>
+                    </td>
+
+                    <td>
+                        <a
+                            class="borrar"
+                            href="/borrar_match_equipo/{{ m.id }}"
+                            onclick="return confirm('¿Seguro que querés borrar este match?')"
+                        >
+                            Borrar
+                        </a>
+                    </td>
+                </form>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>
+        Team 22: {{ matches_equipos.total_team22 }}
+        |
+        Águilas: {{ matches_equipos.total_aguilas }}
+    </h2>
+
+    <h2>{{ matches_equipos.ganador }}</h2>
+
+    {% else %}
+
+    <p style="text-align:center;">Sin matches cargados</p>
+
+    {% endif %}
+
+</div>
+
+<div class="acciones">
+    <a
+        class="reset"
+        href="/reset_matches_equipos"
+        onclick="return confirm('¿Seguro que querés borrar todos los matches por equipos?')"
+    >
+        Borrar matches por equipos
+    </a>
+</div>
     <h2>Posiciones por Categoría</h2>
 
     <div class="listas">
