@@ -412,6 +412,7 @@ def admin():
         team22=obtener_jugadores_equipos()[0],
         aguilas=obtener_jugadores_equipos()[1],
         matches_equipos=obtener_matches_equipos(),
+        proximo_match=obtener_proximo_numero_match(),
         error=error,
         ok=ok
     )
@@ -679,7 +680,7 @@ def agregar_match_equipo():
     if not admin_logueado():
         return redirect("/login")
 
-    numero_match = int(request.form["numero_match"])
+    numero_match = obtener_proximo_numero_match()
     jugador_team22_id = int(request.form["jugador_team22_id"])
     jugador_aguilas_id = int(request.form["jugador_aguilas_id"])
     puntos_partido_team22 = float(request.form["puntos_partido_team22"])
@@ -899,6 +900,21 @@ def descargar_resultados():
     )
 
 
+def obtener_proximo_numero_match():
+    con = db()
+
+    ultimo = con.execute("""
+        SELECT MAX(numero_match) AS ultimo
+        FROM matches_equipos
+    """).fetchone()
+
+    con.close()
+
+    if ultimo and ultimo["ultimo"]:
+        return int(ultimo["ultimo"]) + 1
+
+    return 1
+    
 @app.route("/borrar/<int:id>")
 def borrar(id):
     if not admin_logueado():
