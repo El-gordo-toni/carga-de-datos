@@ -587,6 +587,7 @@ def guardar_configuracion():
     """, (titulo, subtitulo, subtitulo2, logo, fondo))
 
     con.commit()
+    socketio.emit("actualizar_tabla")
     con.close()
 
     return redirect("/admin?ok=configuracion_guardada")
@@ -1216,6 +1217,7 @@ def reset_resultados():
     con = db()
     con.execute("DELETE FROM tarjetas")
     con.commit()
+    socketio.emit("actualizar_tabla")
     con.close()
 
     return redirect("/admin?ok=resultados_borrados")
@@ -1230,6 +1232,7 @@ def reset_jugadores():
     con.execute("DELETE FROM tarjetas")
     con.execute("DELETE FROM jugadores")
     con.commit()
+    socketio.emit("actualizar_tabla")
     con.close()
 
     return redirect("/admin?ok=todo_borrado")
