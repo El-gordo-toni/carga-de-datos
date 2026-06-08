@@ -1080,12 +1080,10 @@ def descargar_resultados():
 
     for m in matches_data["matches"]:
         jugador_team22 = m["jugador_team22"]
-
         if m["comodin_team22"] == 1:
             jugador_team22 += " ⭐"
 
         jugador_aguilas = m["jugador_aguilas"]
-
         if m["comodin_aguilas"] == 1:
             jugador_aguilas += " ⭐"
 
