@@ -771,6 +771,7 @@ def borrar_jugador_equipo(id):
 
 
 @app.route("/crear_cruce_equipo", methods=["POST"])
+@app.route("/agregar_match_equipo", methods=["POST"])
 def crear_cruce_equipo():
     if not admin_logueado():
         return redirect("/login")
@@ -801,7 +802,6 @@ def crear_cruce_equipo():
     con.close()
 
     return redirect("/admin?ok=cruce_equipo_creado")
-
 
 @app.route("/cargar_resultado_match_equipo", methods=["POST"])
 def cargar_resultado_match_equipo():
@@ -1055,22 +1055,6 @@ def descargar_resultados():
         download_name="resultados_torneo_golf.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
-
-def obtener_proximo_numero_match():
-    con = db()
-
-    ultimo = con.execute("""
-        SELECT MAX(numero_match) AS ultimo
-        FROM matches_equipos
-    """).fetchone()
-
-    con.close()
-
-    if ultimo and ultimo["ultimo"]:
-        return int(ultimo["ultimo"]) + 1
-
-    return 1
     
 @app.route("/borrar/<int:id>")
 def borrar(id):
