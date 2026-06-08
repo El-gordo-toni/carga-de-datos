@@ -328,6 +328,10 @@
         <div class="alerta">El match seleccionado no existe.</div>
     {% endif %}
 
+    {% if error == "jugador_ya_tiene_match" %}
+        <div class="alerta">Ese jugador ya tiene un match cargado.</div>
+    {% endif %}
+    
     <div class="bloque">
         <h2>Configurar pantalla pública</h2>
 
