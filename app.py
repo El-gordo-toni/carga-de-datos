@@ -11,6 +11,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 app.secret_key = os.environ.get("SECRET_KEY", "clave-local")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "1234")
+COLAB_PASSWORD = os.environ.get("COLAB_PASSWORD", "2222")
 
 DB_PATH = os.environ.get("DB_PATH", "scores.db")
 UPLOAD_FOLDER = "uploads"
@@ -109,6 +110,11 @@ def init_db():
 def admin_logueado():
     return session.get("admin") is True
 
+def colaborador_logueado():
+    return session.get("colaborador") is True
+
+def admin_o_colaborador():
+    return session.get("admin") is True or session.get("colaborador") is True
 
 def obtener_configuracion():
     con = db()
@@ -394,24 +400,32 @@ def login():
 
         if password == ADMIN_PASSWORD:
             session["admin"] = True
+            session.pop("colaborador", None)
             return redirect("/admin")
+
+        if password == COLAB_PASSWORD:
+            session["colaborador"] = True
+            session.pop("admin", None)
+            return redirect("/colaborador")
 
         error = "Contraseña incorrecta"
 
     return render_template("login.html", error=error)
-
 
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/")
 
-
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
-    if not admin_logueado():
-        return redirect("/login")
 
+    if request.method == "POST":
+        if not admin_o_colaborador():
+            return redirect("/login")
+    else:
+        if not admin_logueado():
+            return redirect("/login")
     error = request.args.get("error")
     ok = request.args.get("ok")
 
@@ -508,6 +522,32 @@ def admin():
         ok=ok
     )
 
+@app.route("/colaborador")
+def colaborador():
+    if not colaborador_logueado():
+        return redirect("/login")
+
+    con = db()
+
+    jugadores = con.execute("""
+        SELECT jugadores.*
+        FROM jugadores
+        LEFT JOIN tarjetas
+        ON jugadores.id = tarjetas.jugador_id
+        WHERE tarjetas.jugador_id IS NULL
+        ORDER BY jugadores.nombre ASC
+    """).fetchall()
+
+    con.close()
+
+    config = obtener_configuracion()
+
+    return render_template(
+        "colaborador.html",
+        titulo=config["titulo"],
+        jugadores=jugadores,
+        matches_equipos=obtener_matches_equipos()
+    )
 @app.route("/guardar_configuracion", methods=["POST"])
 def guardar_configuracion():
     if not admin_logueado():
@@ -818,7 +858,7 @@ def crear_cruce_equipo():
 
 @app.route("/cargar_resultado_match_equipo", methods=["POST"])
 def cargar_resultado_match_equipo():
-    if not admin_logueado():
+    if not admin_o_colaborador():
         return redirect("/login")
 
     match_id = int(request.form["match_id"])
