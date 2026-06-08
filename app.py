@@ -1057,7 +1057,71 @@ def descargar_resultados():
                 max_length = max(max_length, len(str(celda.value)))
 
         ws.column_dimensions[letra].width = max_length + 3
+        
+    ws = wb.create_sheet(title="Match Play")
 
+    encabezados = [
+        "Match",
+        "Team 22",
+        "Pts Partido Team 22",
+        "Águilas",
+        "Pts Partido Águilas",
+        "Puntos Team 22",
+        "Puntos Águilas",
+        "Resultado"
+    ]
+
+    ws.append(encabezados)
+
+    for celda in ws[1]:
+        celda.font = Font(bold=True)
+
+    matches_data = obtener_matches_equipos()
+
+    for m in matches_data["matches"]:
+        jugador_team22 = m["jugador_team22"]
+
+        if m["comodin_team22"] == 1:
+            jugador_team22 += " ⭐"
+
+        jugador_aguilas = m["jugador_aguilas"]
+
+        if m["comodin_aguilas"] == 1:
+            jugador_aguilas += " ⭐"
+
+        ws.append([
+            m["numero_match"],
+            jugador_team22,
+            m["puntos_partido_team22"],
+            jugador_aguilas,
+            m["puntos_partido_aguilas"],
+            m["puntos_tabla_team22"],
+            m["puntos_tabla_aguilas"],
+            m["resultado"]
+        ])
+
+    ws.append([])
+
+    ws.append([
+        "",
+        "TOTAL TEAM 22",
+        "",
+        "TOTAL ÁGUILAS",
+        "",
+        matches_data["total_team22"],
+        matches_data["total_aguilas"],
+        matches_data["ganador"]
+    ])
+
+    for columna in ws.columns:
+        max_length = 0
+        letra = columna[0].column_letter
+
+        for celda in columna:
+            if celda.value:
+                max_length = max(max_length, len(str(celda.value)))
+
+        ws.column_dimensions[letra].width = max_length + 3
     archivo = BytesIO()
     wb.save(archivo)
     archivo.seek(0)
