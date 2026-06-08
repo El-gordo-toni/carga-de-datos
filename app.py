@@ -769,6 +769,7 @@ def borrar_jugador_equipo(id):
 
     return redirect("/admin?ok=jugador_equipo_borrado")
 
+@app.route("/crear_cruce_equipo", methods=["POST"])
 @app.route("/agregar_match_equipo", methods=["POST"])
 def crear_cruce_equipo():
     if not admin_logueado():
@@ -779,7 +780,7 @@ def crear_cruce_equipo():
     jugador_aguilas_id = int(request.form["jugador_aguilas_id"])
 
     con = db()
-    
+
     ya_usado = con.execute("""
         SELECT id
         FROM matches_equipos
@@ -789,11 +790,11 @@ def crear_cruce_equipo():
         jugador_team22_id,
         jugador_aguilas_id
     )).fetchone()
-    
+
     if ya_usado:
         con.close()
         return redirect("/admin?error=jugador_ya_tiene_match")
-    
+
     con.execute("""
         INSERT INTO matches_equipos
         (
