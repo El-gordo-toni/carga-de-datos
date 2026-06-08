@@ -116,6 +116,14 @@ def colaborador_logueado():
 def admin_o_colaborador():
     return session.get("admin") is True or session.get("colaborador") is True
 
+def redireccion_post_carga(ok):
+    if session.get("admin") is True:
+        return redirect(f"/admin?ok={ok}")
+
+    if session.get("colaborador") is True:
+        return redirect(f"/colaborador?ok={ok}")
+
+    return redirect("/login")
 def obtener_configuracion():
     con = db()
 
@@ -481,7 +489,7 @@ def admin():
         socketio.emit("actualizar_tabla")
         con.close()
 
-        return redirect("/admin?ok=resultado_cargado")
+        return redireccion_post_carga("resultado_cargado")
 
     con = db()
 
@@ -914,7 +922,7 @@ def cargar_resultado_match_equipo():
     socketio.emit("actualizar_tabla")
     con.close()
 
-    return redirect("/admin?ok=resultado_match_cargado")
+    return redireccion_post_carga("resultado_match_cargado")
 
 
 @app.route("/editar_match_equipo/<int:id>", methods=["POST"])
