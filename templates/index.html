@@ -316,10 +316,10 @@ background-attachment:fixed;
             {% for m in matches_equipos.matches %}
             <tr>
                 <td>{{ m.numero_match }}</td>
-                <td>{{ m.jugador_team22 }}</td>
+                <td>{{ m.jugador_team22 }}{% if m.comodin_team22 == 1 %} ⭐{% endif %}</td>
                 <td>{{ m.puntos_partido_team22 }}</td>
                 <td>VS</td>
-                <td>{{ m.jugador_aguilas }}</td>
+                <td>{{ m.jugador_aguilas }}{% if m.comodin_aguilas == 1 %} ⭐{% endif %}</td>
                 <td>{{ m.puntos_partido_aguilas }}</td>
                 <td><strong>{{ m.puntos_tabla_team22 }}</strong></td>
                 <td><strong>{{ m.puntos_tabla_aguilas }}</strong></td>
@@ -329,13 +329,22 @@ background-attachment:fixed;
         </tbody>
     </table>
 
-    <h2>
-        Team 22: {{ matches_equipos.total_team22 }}
-        |
-        Águilas: {{ matches_equipos.total_aguilas }}
-    </h2>
-
-    <h2>{{ matches_equipos.ganador }}</h2>
+    <div style="
+        margin-top: 25px;
+        padding: 20px;
+        border-radius: 16px;
+        background: #157347;
+        color: white;
+        text-align: center;
+        font-size: 28px;
+        font-weight: bold;
+    ">
+        Team 22 {{ matches_equipos.total_team22 }}
+        -
+        {{ matches_equipos.total_aguilas }} Águilas
+        <br>
+        {{ matches_equipos.ganador }}
+    </div>
 
     {% else %}
 
