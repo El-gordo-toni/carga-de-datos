@@ -3,798 +3,262 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Admin - {{ titulo }}</title>
+    <title>{{ titulo }}</title>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+    <script>
+        const socket = io();
+
+        socket.on("actualizar_tabla", function () {
+            location.reload();
+        });
+    </script>
 
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: #eef3ee;
             padding: 25px;
             margin: 0;
+            min-height: 100vh;
+            background: #eef3ee;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.20);
+            z-index: 0;
         }
 
         .contenedor {
+            position: relative;
+            z-index: 1;
             max-width: 1400px;
             margin: auto;
-            background: white;
-            padding: 25px;
-            border-radius: 18px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            background: transparent;
+            padding: 30px;
         }
 
-        h1, h2, h3 {
+        h1 {
             text-align: center;
+            font-size: 74px;
+            margin-bottom: 5px;
+            color: black;
         }
 
         .subtitulo {
             text-align: center;
-            color: #555;
-            font-size: 18px;
-            margin-top: -10px;
+            font-size: 52px;
+            color: black;
             margin-bottom: 5px;
         }
 
         .subtitulo2 {
             text-align: center;
-            color: #777;
-            font-size: 16px;
+            font-size: 32px;
+            color: rgb(26, 31, 39);
             margin-bottom: 25px;
         }
 
-        .logo-preview {
+        .logo {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
 
-        .logo-preview img {
-            max-width: 180px;
-            max-height: 180px;
+        .logo img {
+            max-width: 240px;
+            max-height: 240px;
             object-fit: contain;
-        }
-
-        .alerta {
-            padding: 12px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            text-align: center;
-            font-weight: bold;
-            background: #f8d7da;
-            color: #842029;
-        }
-
-        .ok {
-            background: #d1e7dd;
-            color: #0f5132;
-        }
-
-        form {
-            display: grid;
-            gap: 10px;
-            margin-bottom: 25px;
-        }
-
-        .form-excel {
-            grid-template-columns: 2fr 1fr;
-        }
-
-        .form-manual {
-            grid-template-columns: 2fr 1fr 1fr 1fr;
-        }
-
-        .form-config {
-            grid-template-columns: 1fr;
-        }
-
-        .form-resultado {
-            grid-template-columns: 2fr 1fr 1fr 1fr;
-        }
-
-        select,
-        input,
-        button {
-            padding: 10px;
-            font-size: 15px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-        }
-
-        button {
-            background: #157347;
-            color: white;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #0f5c38;
         }
 
         .listas {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 18px;
-        }
-
-        .listas-2 {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 18px;
+            gap: 20px;
         }
 
         .categoria {
-            background: #f5f5f5;
-            border-radius: 14px;
-            padding: 15px;
-            border: 1px solid #ddd;
-        }
-
-        .jugador {
             background: white;
-            margin-bottom: 10px;
-            padding: 12px;
-            border-radius: 10px;
-            border-left: 5px solid #157347;
+            border-radius: 16px;
+            padding: 18px;
+            border: 1px solid #ddd;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.15);
         }
 
-        .puesto {
-            font-weight: bold;
-            color: #157347;
-            margin-bottom: 5px;
-        }
-
-        .borrar {
-            color: red;
-            text-decoration: none;
-            font-weight: bold;
-        }
-
-        .reset {
-            display: inline-block;
-            margin: 10px 5px 0 5px;
-            padding: 12px 18px;
-            background: #b02a37;
-            color: white;
-            text-decoration: none;
-            border-radius: 10px;
-            font-weight: bold;
-        }
-
-        .descargar {
-            background: #157347;
-        }
-
-        .acciones {
+        .categoria h2 {
             text-align: center;
+            color: #157347;
+            margin-bottom: 15px;
+        }
+
+        .general {
+            background: white;
+            border-radius: 16px;
+            padding: 18px;
+            border: 1px solid #ddd;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+            margin-top: 25px;
+        }
+
+        .general h2 {
+            text-align: center;
+            color: #157347;
+            margin-bottom: 15px;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
+            overflow: hidden;
+            border-radius: 10px;
+            background: white;
         }
 
         th {
             background: #157347;
             color: white;
+            padding: 10px;
         }
 
-        th, td {
-            padding: 8px;
-            border-bottom: 1px solid #ddd;
+        td {
+            padding: 10px;
             text-align: center;
+            border-bottom: 1px solid #eee;
         }
 
-        .mini-form {
-            display: flex;
-            gap: 5px;
-            margin: 0;
-            justify-content: center;
+        tr:hover {
+            background: #f2f2f2;
         }
 
-        .mini-form input {
-            width: 80px;
-            padding: 6px;
-        }
-
-        .mini-form .nombre {
-            width: 180px;
-        }
-
-        .mini-form button {
-            padding: 6px 10px;
-            font-size: 13px;
-        }
-
-        .volver {
+        .admin-link {
             text-align: center;
-            margin-bottom: 20px;
+            margin-top: 30px;
         }
 
-        .volver a {
+        .admin-link a {
             color: #157347;
-            font-weight: bold;
             text-decoration: none;
-            margin: 0 10px;
+            font-weight: bold;
+            font-size: 18px;
         }
 
-        .bloque {
-            background: #fafafa;
-            padding: 18px;
-            border-radius: 14px;
-            border: 1px solid #ddd;
-            margin-bottom: 25px;
+        .admin-link a:hover {
+            text-decoration: underline;
         }
 
-        @media (max-width: 900px) {
-            .form-excel,
-            .form-manual,
-            .form-config,
-            .form-resultado {
+        @media (max-width: 1000px) {
+            .listas {
                 grid-template-columns: 1fr;
             }
 
-            .listas,
-            .listas-2 {
-                grid-template-columns: 1fr;
+            h1 {
+                font-size: 32px;
             }
 
-            .mini-form {
-                flex-direction: column;
+            .subtitulo {
+                font-size: 18px;
             }
 
-            .mini-form input,
-            .mini-form .nombre {
-                width: 100%;
+            .subtitulo2 {
+                font-size: 16px;
             }
         }
     </style>
 </head>
 
-<body>
+<body
+{% if fondo %}
+style="
+background-image:url('{{ url_for('static', filename=fondo) }}');
+background-size:cover;
+background-position:center;
+background-attachment:fixed;
+"
+{% endif %}
+>
+
+<div class="overlay"></div>
 
 <div class="contenedor">
 
-    <h1>Panel Admin</h1>
-
     {% if logo %}
-    <div class="logo-preview">
+    <div class="logo">
         <img src="{{ url_for('static', filename=logo) }}">
     </div>
     {% endif %}
 
-    <h2>{{ titulo }}</h2>
-    <div class="subtitulo">{{ subtitulo }}</div>
-    <div class="subtitulo2">{{ subtitulo2 }}</div>
+    <h1>{{ titulo }}</h1>
 
-    <div class="volver">
-        <a href="/">Ver tabla pública</a>
-        <a href="/logout">Cerrar sesión</a>
+    <div class="subtitulo">
+        {{ subtitulo }}
     </div>
 
-    {% if ok %}
-        <div class="alerta ok">Operación realizada correctamente.</div>
-    {% endif %}
-
-    {% if error == "titulo_vacio" %}
-        <div class="alerta">El título no puede estar vacío.</div>
-    {% endif %}
-
-    {% if error == "logo_invalido" %}
-        <div class="alerta">El logo debe ser PNG, JPG, JPEG o WEBP.</div>
-    {% endif %}
-
-    {% if error == "fondo_invalido" %}
-        <div class="alerta">El fondo debe ser PNG, JPG, JPEG o WEBP.</div>
-    {% endif %}
-
-    {% if error == "jugador_repetido" %}
-        <div class="alerta">Este jugador ya tiene resultado cargado.</div>
-    {% endif %}
-
-    {% if error == "jugador_no_existe" %}
-        <div class="alerta">El jugador seleccionado no existe.</div>
-    {% endif %}
-
-    {% if error == "sin_archivo" %}
-        <div class="alerta">No seleccionaste ningún archivo.</div>
-    {% endif %}
-
-    {% if error == "archivo_invalido" %}
-        <div class="alerta">El archivo debe ser Excel .xlsx.</div>
-    {% endif %}
-
-    {% if error == "jugador_ya_existe" %}
-        <div class="alerta">Ese jugador ya existe.</div>
-    {% endif %}
-
-    {% if error == "handicap_invalido" %}
-        <div class="alerta">El handicap debe estar entre 0 y 36.</div>
-    {% endif %}
-
-    {% if error == "nombre_vacio" %}
-        <div class="alerta">El nombre no puede estar vacío.</div>
-    {% endif %}
-
-    {% if error == "comodin_existente" %}
-        <div class="alerta">Ese equipo ya tiene un comodín cargado.</div>
-    {% endif %}
-
-    {% if error == "equipo_invalido" %}
-        <div class="alerta">Equipo inválido.</div>
-    {% endif %}
-
-    {% if error == "match_no_existe" %}
-        <div class="alerta">El match seleccionado no existe.</div>
-    {% endif %}
-
-    {% if error == "jugador_ya_tiene_match" %}
-        <div class="alerta">Ese jugador ya tiene un match cargado.</div>
-    {% endif %}
-    
-    <div class="bloque">
-        <h2>Configurar pantalla pública</h2>
-
-        <form method="POST" action="/guardar_configuracion" class="form-config">
-            <input type="text" name="titulo" value="{{ titulo }}" placeholder="Título del torneo" required>
-            <input type="text" name="subtitulo" value="{{ subtitulo }}" placeholder="Subtítulo 1">
-            <input type="text" name="subtitulo2" value="{{ subtitulo2 }}" placeholder="Subtítulo 2">
-            <input type="text" name="logo" value="{{ logo }}" placeholder="Ejemplo: logo.png">
-            <input type="text" name="fondo" value="{{ fondo }}" placeholder="Ejemplo: fondo.jpg">
-            <button type="submit">Guardar configuración</button>
-        </form>
+    <div class="subtitulo2">
+        {{ subtitulo2 }}
     </div>
-
-    <div class="bloque">
-        <h2>Cargar jugadores desde Excel</h2>
-
-        <form method="POST" action="/cargar_excel" enctype="multipart/form-data" class="form-excel">
-            <input type="file" name="archivo" accept=".xlsx" required>
-            <button type="submit">Subir Excel</button>
-        </form>
-    </div>
-
-    <div class="bloque">
-        <h2>Agregar jugador manual</h2>
-
-        <form method="POST" action="/agregar_jugador" class="form-manual">
-            <input type="text" name="nombre" placeholder="Nombre y apellido" required>
-            <input type="number" name="handicap" placeholder="HCP" min="0" max="36" required>
-            <button type="submit">Agregar jugador</button>
-        </form>
-    </div>
-
-    <div class="bloque">
-        <h2>Cargar resultado</h2>
-
-        <form method="POST" action="/admin" class="form-resultado">
-
-            <select name="jugador" required>
-                <option value="">Seleccionar jugador</option>
-
-                {% for jugador in jugadores %}
-                    <option value="{{ jugador.id }}">
-                        {{ jugador.nombre }} - HCP {{ jugador.handicap }}
-                    </option>
-                {% endfor %}
-            </select>
-
-            <input type="number" name="ida" placeholder="Ida" required>
-            <input type="number" name="vuelta" placeholder="Vuelta" required>
-
-            <button type="submit">Cargar resultado</button>
-        </form>
-    </div>
-
-    <div class="bloque">
-        <h2>Jugadores por Equipo</h2>
-
-        <form method="POST" action="/agregar_jugador_equipo" class="form-manual">
-            <input type="text" name="nombre" placeholder="Nombre del jugador" required>
-
-            <select name="equipo" id="equipo" required onchange="mostrarComodin()">
-                <option value="">Seleccionar equipo</option>
-                <option value="Team 22">Team 22</option>
-                <option value="Águilas">Águilas</option>
-            </select>
-
-            <label id="comodin_team22" style="display:none;">
-                <input type="checkbox" name="comodin" value="1">
-                Es comodín Team 22
-            </label>
-
-            <label id="comodin_aguilas" style="display:none;">
-                <input type="checkbox" name="comodin" value="1">
-                Es comodín Águilas
-            </label>
-
-            <button type="submit">Agregar jugador</button>
-        </form>
-
-        <form method="POST" action="/cargar_excel_equipos" enctype="multipart/form-data"    class="form-excel">
-            <input type="file" name="archivo_equipos" accept=".xlsx" required>
-            <button type="submit">Subir Excel Equipos</button>
-        </form>
-
-
-        <script>
-            const comodinTeam22Existe = {{ 'true' if comodin_team22_existe else 'false' }};
-            const comodinAguilasExiste = {{ 'true' if comodin_aguilas_existe else 'false' }};
-
-            function mostrarComodin() {
-                const equipo = document.getElementById("equipo").value;
-                const team22 = document.getElementById("comodin_team22");
-                const aguilas = document.getElementById("comodin_aguilas");
-
-                team22.style.display = "none";
-                aguilas.style.display = "none";
-
-                if (equipo === "Team 22" && !comodinTeam22Existe) {
-                    team22.style.display = "block";
-                }
-
-                if (equipo === "Águilas" && !comodinAguilasExiste) {
-                    aguilas.style.display = "block";
-                }
-            }
-        </script>
-
-        <div class="listas-2">
-            <div class="categoria">
-                <h3>Team 22</h3>
-
-                {% if team22_todos %}
-                    {% for j in team22_todos %}
-                        <div class="jugador">
-                            <strong>
-                                {{ j.nombre }}
-                                {% if j.comodin == 1 %} ⭐{% endif %}
-                            </strong>
-                            <br><br>
-
-                            <a
-                                class="borrar"
-                                href="/borrar_jugador_equipo/{{ j.id }}"
-                                onclick="return confirm('¿Seguro que querés borrar este jugador del equipo? También se borrarán sus matches.')"
-                            >
-                                Borrar
-                            </a>
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <p>Sin jugadores cargados</p>
-                {% endif %}
-            </div>
-
-            <div class="categoria">
-                <h3>Águilas</h3>
-
-                {% if aguilas_todos %}
-                    {% for j in aguilas_todos %}
-                        <div class="jugador">
-                            <strong>
-                                {{ j.nombre }}
-                                {% if j.comodin == 1 %} ⭐{% endif %}
-                            </strong>
-                            <br><br>
-
-                            <a
-                                class="borrar"
-                                href="/borrar_jugador_equipo/{{ j.id }}"
-                                onclick="return confirm('¿Seguro que querés borrar este jugador del equipo? También se borrarán sus matches.')"
-                            >
-                                Borrar
-                            </a>
-                        </div>
-                    {% endfor %}
-                {% else %}
-                    <p>Sin jugadores cargados</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <div class="acciones">
-        <a
-            class="reset"
-            href="/reset_team22"
-            onclick="return confirm('¿Seguro que querés borrar todo el Team 22 y sus matches?')"
-        >
-            Borrar Team 22
-        </a>
-
-        <a
-            class="reset"
-            href="/reset_aguilas"
-            onclick="return confirm('¿Seguro que querés borrar todas las Águilas y sus matches?')"
-        >
-            Borrar Águilas
-        </a>
-    </div>
-
-    <div class="bloque">
-        <h2>Crear Cruce por Equipos</h2>
-
-        <form method="POST" action="/crear_cruce_equipo" class="form-resultado">
-            <input type="text" value="Match Nº {{ proximo_match }}" disabled>
-
-            <select name="jugador_team22_id" required>
-                <option value="">Jugador Team 22</option>
-                {% for j in team22 %}
-                    <option value="{{ j.id }}">
-                        {{ j.nombre }}{% if j.comodin == 1 %} ⭐{% endif %}
-                    </option>
-                {% endfor %}
-            </select>
-
-            <input type="text" value="VS" disabled>
-
-            <select name="jugador_aguilas_id" required>
-                <option value="">Jugador Águilas</option>
-                {% for j in aguilas %}
-                    <option value="{{ j.id }}">
-                        {{ j.nombre }}{% if j.comodin == 1 %} ⭐{% endif %}
-                    </option>
-                {% endfor %}
-            </select>
-
-            <button type="submit">Crear cruce</button>
-        </form>
-    </div>
-
-    <div class="bloque">
-        <h2>Cargar Resultado de Match</h2>
-
-        <form method="POST" action="/cargar_resultado_match_equipo" class="form-resultado">
-            <select name="match_id" required>
-                <option value="">Seleccionar match pendiente</option>
-
-                {% for m in matches_equipos.pendientes %}
-                    <option value="{{ m.id }}">
-                        Match {{ m.numero_match }} -
-                        {{ m.jugador_team22 }}{% if m.comodin_team22 == 1 %} ⭐{% endif %}
-                        vs
-                        {{ m.jugador_aguilas }}{% if m.comodin_aguilas == 1 %} ⭐{% endif %}
-                    </option>
-                {% endfor %}
-            </select>
-
-            <input type="number" step="0.5" name="puntos_partido_team22" placeholder="Pts Team 22" required>
-
-            <input type="number" step="0.5" name="puntos_partido_aguilas" placeholder="Pts Águilas" required>
-
-            <button type="submit">Guardar resultado</button>
-        </form>
-    </div>
-
-    <div class="bloque">
-    <h2>Puntos Totales Previos</h2>
-
-    <form method="POST" action="/guardar_puntos_previos" class="form-manual">
-            <input
-                type="number"
-                step="0.5"
-                name="puntos_team22"
-                value="{{ matches_equipos.previos_team22 }}"
-                placeholder="Puntos previos Team 22"
-                required
-            >
-
-            <input
-                type="number"
-                step="0.5"
-                name="puntos_aguilas"
-                value="{{ matches_equipos.previos_aguilas }}"
-                placeholder="Puntos previos Águilas"
-                required
-            >
-
-            <button type="submit">Guardar puntos previos</button>
-        </form>
-    </div>
-
-    <h2>Match por Equipos</h2>
-
-    <div class="categoria">
-
-        {% if matches_equipos.matches %}
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Match</th>
-                    <th>Team 22</th>
-                    <th>Pts Partido</th>
-                    <th>VS</th>
-                    <th>Águilas</th>
-                    <th>Pts Partido</th>
-                    <th>Team 22</th>
-                    <th>Águilas</th>
-                    <th>Resultado</th>
-                    <th>Modificar</th>
-                    <th>Borrar</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for m in matches_equipos.matches %}
-                <tr>
-                    <form method="POST" action="/editar_match_equipo/{{ m.id }}">
-                        <td>{{ m.numero_match }}</td>
-
-                        <td>
-                            {{ m.jugador_team22 }}
-                            {% if m.comodin_team22 == 1 %} ⭐{% endif %}
-                        </td>
-
-                        <td>
-                            <input
-                                type="number"
-                                step="0.5"
-                                name="puntos_partido_team22"
-                                value="{{ m.puntos_partido_team22 }}"
-                                style="width:70px;"
-                                required
-                            >
-                        </td>
-
-                        <td>VS</td>
-
-                        <td>
-                            {{ m.jugador_aguilas }}
-                            {% if m.comodin_aguilas == 1 %} ⭐{% endif %}
-                        </td>
-
-                        <td>
-                            <input
-                                type="number"
-                                step="0.5"
-                                name="puntos_partido_aguilas"
-                                value="{{ m.puntos_partido_aguilas }}"
-                                style="width:70px;"
-                                required
-                            >
-                        </td>
-
-                        <td><strong>{{ m.puntos_tabla_team22 }}</strong></td>
-                        <td><strong>{{ m.puntos_tabla_aguilas }}</strong></td>
-                        <td>{{ m.resultado }}</td>
-
-                        <td>
-                            <button type="submit">Guardar</button>
-                        </td>
-
-                        <td>
-                            <a
-                                class="borrar"
-                                href="/borrar_match_equipo/{{ m.id }}"
-                                onclick="return confirm('¿Seguro que querés borrar este match?')"
-                            >
-                                Borrar
-                            </a>
-                        </td>
-                    </form>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <div style="
-            margin-top: 25px;
-            padding: 20px;
-            border-radius: 16px;
-            background: #157347;
-            color: white;
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-        ">
-
-            Puntos del día
-            <br>
-
-            Team 22 {{ matches_equipos.total_dia_team22 }}
-            -
-            {{ matches_equipos.total_dia_aguilas }} Águilas
-
-            <br><br>
-
-            Puntos totales
-            <br>
-
-            Team 22 {{ matches_equipos.total_team22 }}
-            -
-            {{ matches_equipos.total_aguilas }} Águilas
-
-            <br><br>
-
-            {{ matches_equipos.ganador }}
-
-        </div>
-
-        {% else %}
-
-        <p style="text-align:center;">Sin matches cargados</p>
-
-        {% endif %}
-
-    </div>
-
-    <div class="acciones">
-        <a
-            class="reset"
-            href="/reset_matches_equipos"
-            onclick="return confirm('¿Seguro que querés borrar todos los matches por equipos?')"
-        >
-            Borrar matches por equipos
-        </a>
-    </div>
-
-    <h2>Posiciones por Categoría</h2>
 
     <div class="listas">
 
         {% for categoria, lista in categorias.items() %}
 
-            <div class="categoria">
+        <div class="categoria">
 
-                <h3>Categoría {{ categoria }}</h3>
+            <h2>Categoría {{ categoria }}</h2>
 
-                {% if lista %}
+            {% if lista %}
 
+            <table>
+                <thead>
+                    <tr>
+                        <th>Pos</th>
+                        <th>Jugador</th>
+                        <th>HCP</th>
+                        <th>Ida</th>
+                        <th>Vuelta</th>
+                        <th>Gross</th>
+                        <th>Neto</th>
+                        <th>Puntos</th>
+                    </tr>
+                </thead>
+
+                <tbody>
                     {% for j in lista %}
-
-                        <div class="jugador">
-
-                            <div class="puesto">{{ loop.index }}° Puesto</div>
-
-                            <strong>{{ j.nombre }}</strong><br>
-                            HCP: {{ j.handicap }}<br>
-                            Ida: {{ j.ida }} | Vuelta: {{ j.vuelta }}<br>
-                            Gross: {{ j.gross }}<br>
-                            Neto: <strong>{{ j.neto }}</strong><br>
-                            Puntos: <strong>{{ j.puntos }}</strong><br><br>
-
-                            <form method="POST" action="/editar_resultado/{{ j.id }}" class="mini-form">
-                                <input type="number" name="ida" value="{{ j.ida }}" required>
-                                <input type="number" name="vuelta" value="{{ j.vuelta }}" required>
-                                <button type="submit">Modificar</button>
-                            </form>
-
-                            <br>
-
-                            <a
-                                class="borrar"
-                                href="/borrar/{{ j.id }}"
-                                onclick="return confirm('¿Seguro que querés borrar este resultado?')"
-                            >
-                                Borrar resultado
-                            </a>
-
-                        </div>
-
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ j.nombre }}</td>
+                        <td>{{ j.handicap }}</td>
+                        <td>{{ j.ida }}</td>
+                        <td>{{ j.vuelta }}</td>
+                        <td>{{ j.gross }}</td>
+                        <td><strong>{{ j.neto }}</strong></td>
+                        <td><strong>{{ j.puntos }}</strong></td>
+                    </tr>
                     {% endfor %}
+                </tbody>
+            </table>
 
-                {% else %}
+            {% else %}
 
-                    <p>Sin resultados cargados</p>
+            <p style="text-align:center;">
+                Sin resultados cargados
+            </p>
 
-                {% endif %}
+            {% endif %}
 
-            </div>
+        </div>
 
         {% endfor %}
 
     </div>
 
-    <h2>Tabla General</h2>
+    <div class="general">
 
-    <div class="categoria">
+        <h2>Tabla General</h2>
 
         {% if general %}
 
         <table>
-
             <thead>
                 <tr>
                     <th>Pos</th>
@@ -806,9 +270,7 @@
             </thead>
 
             <tbody>
-
                 {% for j in general %}
-
                 <tr>
                     <td>{{ loop.index }}</td>
                     <td>{{ j.nombre }}</td>
@@ -816,11 +278,8 @@
                     <td><strong>{{ j.neto }}</strong></td>
                     <td><strong>{{ j.puntos }}</strong></td>
                 </tr>
-
                 {% endfor %}
-
             </tbody>
-
         </table>
 
         {% else %}
@@ -832,63 +291,86 @@
         {% endif %}
 
     </div>
+<div class="general">
 
-    <br>
+    <h2>Match por Equipos</h2>
 
-    <h2>Modificar jugadores</h2>
+    {% if matches_equipos.matches %}
 
     <table>
-        <tr>
-            <th>Jugador</th>
-            <th>Modificar</th>
-            <th>Borrar</th>
-        </tr>
+        <thead>
+            <tr>
+                <th>Match</th>
+                <th>Team 22</th>
+                <th>Resultado</th>
+                <th>VS</th>
+                <th>Águilas</th>
+                <th>Resultado</th>
+                <th>Team 22</th>
+                <th>Águilas</th>
+                <th>Resultado</th>
+            </tr>
+        </thead>
 
-        {% for jugador in jugadores %}
-        <tr>
-            <td>{{ jugador.nombre }} - HCP {{ jugador.handicap }}</td>
-
-            <td>
-                <form method="POST" action="/editar_jugador/{{ jugador.id }}" class="mini-form">
-                    <input class="nombre" type="text" name="nombre" value="{{ jugador.nombre }}" required>
-                    <input type="number" name="handicap" value="{{ jugador.handicap }}" min="0" max="36" required>
-                    <button type="submit">Guardar</button>
-                </form>
-            </td>
-
-            <td>
-                <a
-                    class="borrar"
-                    href="/borrar_jugador/{{ jugador.id }}"
-                    onclick="return confirm('¿Seguro que querés borrar este jugador y su resultado?')"
-                >
-                    Borrar
-                </a>
-            </td>
-        </tr>
-        {% endfor %}
+        <tbody>
+            {% for m in matches_equipos.matches %}
+            <tr>
+                <td>{{ m.numero_match }}</td>
+                <td>{{ m.jugador_team22 }}{% if m.comodin_team22 == 1 %} ⭐{% endif %}</td>
+                <td>{{ m.puntos_partido_team22 }}</td>
+                <td>VS</td>
+                <td>{{ m.jugador_aguilas }}{% if m.comodin_aguilas == 1 %} ⭐{% endif %}</td>
+                <td>{{ m.puntos_partido_aguilas }}</td>
+                <td><strong>{{ m.puntos_tabla_team22 }}</strong></td>
+                <td><strong>{{ m.puntos_tabla_aguilas }}</strong></td>
+                <td>{{ m.resultado }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
     </table>
 
-    <div class="acciones">
-        <a class="reset descargar" href="/descargar_resultados">
-            Descargar resultados Excel
-        </a>
+    <div style="
+        margin-top: 25px;
+        padding: 20px;
+        border-radius: 16px;
+        background: #157347;
+        color: white;
+        text-align: center;
+        font-size: 24px;
+        font-weight: bold;
+    ">
 
-        <a
-            class="reset"
-            href="/reset_resultados"
-            onclick="return confirm('¿Seguro que querés borrar TODOS los resultados?')"
-        >
-            Borrar resultados
-        </a>
+        Puntos del día
+        <br>
 
-        <a
-            class="reset"
-            href="/reset_jugadores"
-            onclick="return confirm('¿Seguro que querés borrar TODOS los jugadores y resultados?')"
-        >
-            Borrar jugadores y resultados
-        </a>
+        Team 22 {{ matches_equipos.total_dia_team22 }}
+        -
+        {{ matches_equipos.total_dia_aguilas }} Águilas
+
+        <br><br>
+
+        Puntos totales
+        <br>
+
+        Team 22 {{ matches_equipos.total_team22 }}
+        -
+        {{ matches_equipos.total_aguilas }} Águilas
+
+        <br><br>
+
+        {{ matches_equipos.ganador }}
+
+    </div>
+
+    {% else %}
+
+    <p style="text-align:center;">Sin matches cargados</p>
+
+    {% endif %}
+
+</div>
+    <div class="admin-link">
+        <a href="/admin">Panel admin</a>
     </div>
 
 </div>
