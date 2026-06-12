@@ -103,6 +103,26 @@ def init_db():
             resultado_cargado INTEGER NOT NULL DEFAULT 0
         )
     """)
+
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS puntos_equipos (
+            equipo TEXT PRIMARY KEY,
+            puntos_previos REAL NOT NULL DEFAULT 0
+        )
+    """)
+
+    for equipo in ["Team 22", "Águilas"]:
+        existe = con.execute("""
+            SELECT equipo
+            FROM puntos_equipos
+            WHERE equipo = ?
+        """, (equipo,)).fetchone()
+
+        if not existe:
+            con.execute("""
+                INSERT INTO puntos_equipos (equipo, puntos_previos)
+                VALUES (?, 0)
+            """, (equipo,))
     con.commit()
     con.close()
 
@@ -190,6 +210,25 @@ def agregar_puntos(lista):
 
     return resultado
 
+def obtener_puntos_previos():
+    con = db()
+
+    datos = con.execute("""
+        SELECT *
+        FROM puntos_equipos
+    """).fetchall()
+
+    con.close()
+
+    puntos = {
+        "Team 22": 0,
+        "Águilas": 0
+    }
+
+    for d in datos:
+        puntos[d["equipo"]] = float(d["puntos_previos"])
+
+    return puntos
 
 def obtener_categorias():
     con = db()
@@ -363,8 +402,16 @@ def obtener_matches_equipos():
 
     con.close()
 
-    total_team22 = sum(float(m["puntos_tabla_team22"]) for m in matches)
-    total_aguilas = sum(float(m["puntos_tabla_aguilas"]) for m in matches)
+    total_dia_team22 = sum(float(m["puntos_tabla_team22"]) for m in matches)
+    total_dia_aguilas = sum(float(m["puntos_tabla_aguilas"]) for m in matches)
+
+    puntos_previos = obtener_puntos_previos()
+
+    previos_team22 = puntos_previos["Team 22"]
+    previos_aguilas = puntos_previos["Águilas"]
+
+    total_team22 = previos_team22 + total_dia_team22
+    total_aguilas = previos_aguilas + total_dia_aguilas
 
     if total_team22 > total_aguilas:
         ganador = "Gana Team 22"
@@ -378,8 +425,14 @@ def obtener_matches_equipos():
         "pendientes": pendientes,
         "total_team22": total_team22,
         "total_aguilas": total_aguilas,
-        "ganador": ganador
-    }
+        "ganador": ganador,
+        "total_dia_team22": total_dia_team22,
+        "total_dia_aguilas": total_dia_aguilas,
+        "previos_team22": previos_team22,
+        "previos_aguilas": previos_aguilas,
+        "total_team22": total_team22,
+        "total_aguilas": total_aguilas,
+            }
 
 
 @app.route("/")
@@ -556,6 +609,7 @@ def colaborador():
         jugadores=jugadores,
         matches_equipos=obtener_matches_equipos()
     )
+
 @app.route("/guardar_configuracion", methods=["POST"])
 def guardar_configuracion():
     if not admin_logueado():
@@ -925,6 +979,33 @@ def cargar_resultado_match_equipo():
 
     return redireccion_post_carga("resultado_match_cargado")
 
+@app.route("/guardar_puntos_previos", methods=["POST"])
+def guardar_puntos_previos():
+    if not admin_logueado():
+        return redirect("/login")
+
+    puntos_team22 = float(request.form["puntos_team22"])
+    puntos_aguilas = float(request.form["puntos_aguilas"])
+
+    con = db()
+
+    con.execute("""
+        UPDATE puntos_equipos
+        SET puntos_previos = ?
+        WHERE equipo = 'Team 22'
+    """, (puntos_team22,))
+
+    con.execute("""
+        UPDATE puntos_equipos
+        SET puntos_previos = ?
+        WHERE equipo = 'Águilas'
+    """, (puntos_aguilas,))
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redirect("/admin?ok=puntos_previos_guardados")
 
 @app.route("/editar_match_equipo/<int:id>", methods=["POST"])
 def editar_match_equipo(id):
@@ -1019,6 +1100,161 @@ def reset_matches_equipos():
     con.close()
 
     return redirect("/admin?ok=matches_equipos_borrados")
+
+@app.route("/cargar_excel_equipos", methods=["POST"])
+def cargar_excel_equipos():
+    if not admin_logueado():
+        return redirect("/login")
+
+    archivo = request.files.get("archivo_equipos")
+
+    if not archivo:
+        return redirect("/admin?error=sin_archivo")
+
+    if not archivo.filename.endswith(".xlsx"):
+        return redirect("/admin?error=archivo_invalido")
+
+    ruta = os.path.join(UPLOAD_FOLDER, archivo.filename)
+    archivo.save(ruta)
+
+    workbook = load_workbook(ruta)
+    hoja = workbook.active
+
+    con = db()
+
+    comodin_cargado_team22 = existe_comodin("Team 22")
+    comodin_cargado_aguilas = existe_comodin("Águilas")
+
+    for fila in hoja.iter_rows(min_row=2, values_only=True):
+        nombre = fila[0]
+        equipo = fila[1]
+        comodin_valor = fila[2] if len(fila) > 2 else ""
+
+        if not nombre or not equipo:
+            continue
+
+        nombre = str(nombre).strip()
+        equipo = str(equipo).strip()
+
+        if equipo.lower() in ["team 22", "team22"]:
+            equipo = "Team 22"
+        elif equipo.lower() in ["aguilas", "águilas"]:
+            equipo = "Águilas"
+        else:
+            continue
+
+        comodin_texto = str(comodin_valor).strip().lower()
+
+        es_comodin = comodin_texto in ["si", "sí", "s", "1", "true", "verdadero", "x"]
+
+        if es_comodin:
+            if equipo == "Team 22":
+                if comodin_cargado_team22:
+                    es_comodin = False
+                else:
+                    comodin_cargado_team22 = True
+
+            if equipo == "Águilas":
+                if comodin_cargado_aguilas:
+                    es_comodin = False
+                else:
+                    comodin_cargado_aguilas = True
+
+        existe = con.execute("""
+            SELECT id
+            FROM jugadores_equipos
+            WHERE nombre = ?
+            AND equipo = ?
+        """, (nombre, equipo)).fetchone()
+
+        if existe:
+            continue
+
+        con.execute("""
+            INSERT INTO jugadores_equipos (nombre, equipo, comodin)
+            VALUES (?, ?, ?)
+        """, (
+            nombre,
+            equipo,
+            1 if es_comodin else 0
+        ))
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redirect("/admin?ok=jugadores_equipos_cargados")
+
+@app.route("/reset_team22")
+def reset_team22():
+    if not admin_logueado():
+        return redirect("/login")
+
+    con = db()
+
+    jugadores = con.execute("""
+        SELECT id
+        FROM jugadores_equipos
+        WHERE equipo = 'Team 22'
+    """).fetchall()
+
+    ids = [j["id"] for j in jugadores]
+
+    if ids:
+        placeholders = ",".join("?" for _ in ids)
+
+        con.execute(f"""
+            DELETE FROM matches_equipos
+            WHERE jugador_team22_id IN ({placeholders})
+            OR jugador_aguilas_id IN ({placeholders})
+        """, ids + ids)
+
+        con.execute(f"""
+            DELETE FROM jugadores_equipos
+            WHERE id IN ({placeholders})
+        """, ids)
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redirect("/admin?ok=team22_borrado")
+
+
+@app.route("/reset_aguilas")
+def reset_aguilas():
+    if not admin_logueado():
+        return redirect("/login")
+
+    con = db()
+
+    jugadores = con.execute("""
+        SELECT id
+        FROM jugadores_equipos
+        WHERE equipo = 'Águilas'
+    """).fetchall()
+
+    ids = [j["id"] for j in jugadores]
+
+    if ids:
+        placeholders = ",".join("?" for _ in ids)
+
+        con.execute(f"""
+            DELETE FROM matches_equipos
+            WHERE jugador_team22_id IN ({placeholders})
+            OR jugador_aguilas_id IN ({placeholders})
+        """, ids + ids)
+
+        con.execute(f"""
+            DELETE FROM jugadores_equipos
+            WHERE id IN ({placeholders})
+        """, ids)
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redirect("/admin?ok=aguilas_borrado")
 
 @app.route("/descargar_resultados")
 def descargar_resultados():
