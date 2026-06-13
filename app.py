@@ -1363,29 +1363,38 @@ def guardar_premios_especiales():
     con = db()
 
     for premio_id, jugador_id in premios.items():
-        if jugador_id:
-            jugador = con.execute("""
-                SELECT *
-                FROM jugadores
-                WHERE id = ?
-            """, (jugador_id,)).fetchone()
 
-            if not jugador:
-                continue
-
-            hcp = int(jugador["handicap"])
-
-            if premio_id in [1, 3] and not (0 <= hcp <= 18):
-                continue
-
-            if premio_id in [2, 4] and not (19 <= hcp <= 36):
-                continue
-
+        # Si queda vacío, vuelve a pendiente
+        if not jugador_id:
             con.execute("""
                 UPDATE premios_especiales
-                SET jugador_id = ?
+                SET jugador_id = NULL
                 WHERE id = ?
-            """, (jugador_id, premio_id))
+            """, (premio_id,))
+            continue
+
+        jugador = con.execute("""
+            SELECT *
+            FROM jugadores
+            WHERE id = ?
+        """, (jugador_id,)).fetchone()
+
+        if not jugador:
+            continue
+
+        hcp = int(jugador["handicap"])
+
+        if premio_id in [1, 3] and not (0 <= hcp <= 18):
+            continue
+
+        if premio_id in [2, 4] and not (19 <= hcp <= 36):
+            continue
+
+        con.execute("""
+            UPDATE premios_especiales
+            SET jugador_id = ?
+            WHERE id = ?
+        """, (jugador_id, premio_id))
 
     con.commit()
     socketio.emit("actualizar_tabla")
