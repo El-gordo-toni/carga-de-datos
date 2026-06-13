@@ -123,6 +123,36 @@ def init_db():
                 INSERT INTO puntos_equipos (equipo, puntos_previos)
                 VALUES (?, 0)
             """, (equipo,))
+   con.execute("""
+        CREATE TABLE IF NOT EXISTS premios_especiales (
+            id INTEGER PRIMARY KEY,
+            tipo TEXT NOT NULL,
+            categoria TEXT NOT NULL,
+            jugador_id INTEGER
+        )
+    """)
+    
+    premios_base = [
+        (1, "Approach", "0 a 18"),
+        (2, "Approach", "19 a 36"),
+        (3, "Long Drive", "0 a 18"),
+        (4, "Long Drive", "19 a 36")
+    ]
+    
+    for premio in premios_base:
+        existe = con.execute("""
+            SELECT id
+            FROM premios_especiales
+            WHERE id = ?
+        """, (premio[0],)).fetchone()
+    
+        if not existe:
+            con.execute("""
+                INSERT INTO premios_especiales
+                (id, tipo, categoria, jugador_id)
+                VALUES (?, ?, ?, NULL)
+            """, premio)
+    
     con.commit()
     con.close()
 
@@ -261,6 +291,57 @@ def obtener_general():
 
     return agregar_puntos(lista)
 
+def obtener_jugadores_premios():
+    con = db()
+
+    jugadores_0_18 = con.execute("""
+        SELECT *
+        FROM jugadores
+        WHERE handicap BETWEEN 0 AND 18
+        ORDER BY nombre ASC
+    """).fetchall()
+
+    jugadores_19_36 = con.execute("""
+        SELECT *
+        FROM jugadores
+        WHERE handicap BETWEEN 19 AND 36
+        ORDER BY nombre ASC
+    """).fetchall()
+
+    con.close()
+
+    return {
+        "0 a 18": jugadores_0_18,
+        "19 a 36": jugadores_19_36
+    }
+
+
+def obtener_premios_especiales():
+    con = db()
+
+    premios = con.execute("""
+        SELECT
+            p.id,
+            p.tipo,
+            p.categoria,
+            p.jugador_id,
+            j.nombre AS jugador_nombre,
+            j.handicap AS jugador_handicap
+        FROM premios_especiales p
+        LEFT JOIN jugadores j
+            ON p.jugador_id = j.id
+        ORDER BY p.id ASC
+    """).fetchall()
+
+    con.close()
+
+    resultado = {}
+
+    for p in premios:
+        clave = f"{p['tipo']} {p['categoria']}"
+        resultado[clave] = dict(p)
+
+    return resultado
 
 def existe_comodin(equipo):
     con = db()
@@ -444,6 +525,7 @@ def index():
         categorias=obtener_categorias(),
         general=obtener_general(),
         matches_equipos=obtener_matches_equipos(),
+        premios_especiales=obtener_premios_especiales(),
         titulo=config["titulo"],
         subtitulo=config["subtitulo"],
         subtitulo2=config["subtitulo2"],
@@ -579,6 +661,8 @@ def admin():
         proximo_match=obtener_proximo_numero_match(),
         comodin_team22_existe=existe_comodin("Team 22"),
         comodin_aguilas_existe=existe_comodin("Águilas"),
+        jugadores_premios=obtener_jugadores_premios(),
+        premios_especiales=obtener_premios_especiales(),
         error=error,
         ok=ok
     )
@@ -607,7 +691,9 @@ def colaborador():
         "colaborador.html",
         titulo=config["titulo"],
         jugadores=jugadores,
-        matches_equipos=obtener_matches_equipos()
+        matches_equipos=obtener_matches_equipos(),
+        jugadores_premios=obtener_jugadores_premios(),
+        premios_especiales=obtener_premios_especiales()
     )
 
 @app.route("/guardar_configuracion", methods=["POST"])
@@ -1255,6 +1341,51 @@ def reset_aguilas():
     con.close()
 
     return redirect("/admin?ok=aguilas_borrado")
+
+@app.route("/guardar_premios_especiales", methods=["POST"])
+def guardar_premios_especiales():
+    if not admin_o_colaborador():
+        return redirect("/login")
+
+    premios = {
+        1: request.form.get("approach_0_18"),
+        2: request.form.get("approach_19_36"),
+        3: request.form.get("long_0_18"),
+        4: request.form.get("long_19_36")
+    }
+
+    con = db()
+
+    for premio_id, jugador_id in premios.items():
+        if jugador_id:
+            jugador = con.execute("""
+                SELECT *
+                FROM jugadores
+                WHERE id = ?
+            """, (jugador_id,)).fetchone()
+
+            if not jugador:
+                continue
+
+            hcp = int(jugador["handicap"])
+
+            if premio_id in [1, 3] and not (0 <= hcp <= 18):
+                continue
+
+            if premio_id in [2, 4] and not (19 <= hcp <= 36):
+                continue
+
+            con.execute("""
+                UPDATE premios_especiales
+                SET jugador_id = ?
+                WHERE id = ?
+            """, (jugador_id, premio_id))
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redireccion_post_carga("premios_guardados")
 
 @app.route("/descargar_resultados")
 def descargar_resultados():
