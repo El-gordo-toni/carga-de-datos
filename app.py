@@ -71,7 +71,11 @@ def init_db():
         )
     """)
 
-    existe = con.execute("SELECT id FROM configuracion WHERE id = 1").fetchone()
+    existe = con.execute("""
+        SELECT id
+        FROM configuracion
+        WHERE id = 1
+    """).fetchone()
 
     if not existe:
         con.execute("""
@@ -80,6 +84,7 @@ def init_db():
             VALUES
             (1, 'Torneo de Golf', 'Tabla de posiciones por categoría', 'Resultados oficiales', '', '')
         """)
+
     con.execute("""
         CREATE TABLE IF NOT EXISTS jugadores_equipos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,7 +93,7 @@ def init_db():
             comodin INTEGER NOT NULL DEFAULT 0
         )
     """)
-    
+
     con.execute("""
         CREATE TABLE IF NOT EXISTS matches_equipos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,7 +128,8 @@ def init_db():
                 INSERT INTO puntos_equipos (equipo, puntos_previos)
                 VALUES (?, 0)
             """, (equipo,))
-   con.execute("""
+
+    con.execute("""
         CREATE TABLE IF NOT EXISTS premios_especiales (
             id INTEGER PRIMARY KEY,
             tipo TEXT NOT NULL,
@@ -131,28 +137,28 @@ def init_db():
             jugador_id INTEGER
         )
     """)
-    
+
     premios_base = [
         (1, "Approach", "0 a 18"),
         (2, "Approach", "19 a 36"),
         (3, "Long Drive", "0 a 18"),
         (4, "Long Drive", "19 a 36")
     ]
-    
+
     for premio in premios_base:
         existe = con.execute("""
             SELECT id
             FROM premios_especiales
             WHERE id = ?
         """, (premio[0],)).fetchone()
-    
+
         if not existe:
             con.execute("""
                 INSERT INTO premios_especiales
                 (id, tipo, categoria, jugador_id)
                 VALUES (?, ?, ?, NULL)
             """, premio)
-    
+
     con.commit()
     con.close()
 
