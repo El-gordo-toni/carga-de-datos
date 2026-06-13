@@ -593,6 +593,88 @@
         </form>
     </div>
 
+    <div class="bloque">
+
+    <h2>Premios Especiales</h2>
+
+    <form method="POST" action="/guardar_premios_especiales" class="form-config">
+
+            <h3>Approach</h3>
+    
+            <label>0 a 18</label>
+            <select name="approach_0_18">
+    
+                <option value="">Sin ganador</option>
+    
+                {% for j in jugadores_premios["0 a 18"] %}
+                <option
+                    value="{{ j.id }}"
+                    {% if premios_especiales["Approach 0 a 18"].jugador_id == j.id %}selected{% endif %}
+                >
+                    {{ j.nombre }} (HCP {{ j.handicap }})
+                </option>
+                {% endfor %}
+    
+            </select>
+    
+            <label>19 a 36</label>
+            <select name="approach_19_36">
+    
+                <option value="">Sin ganador</option>
+    
+                {% for j in jugadores_premios["19 a 36"] %}
+                <option
+                    value="{{ j.id }}"
+                    {% if premios_especiales["Approach 19 a 36"].jugador_id == j.id %}selected{% endif %}
+                >
+                    {{ j.nombre }} (HCP {{ j.handicap }})
+                </option>
+                {% endfor %}
+    
+            </select>
+    
+            <h3>Long Drive</h3>
+    
+            <label>0 a 18</label>
+            <select name="long_0_18">
+    
+                <option value="">Sin ganador</option>
+    
+                {% for j in jugadores_premios["0 a 18"] %}
+                <option
+                    value="{{ j.id }}"
+                    {% if premios_especiales["Long Drive 0 a 18"].jugador_id == j.id %}selected{% endif %}
+                >
+                    {{ j.nombre }} (HCP {{ j.handicap }})
+                </option>
+                {% endfor %}
+    
+            </select>
+    
+            <label>19 a 36</label>
+            <select name="long_19_36">
+    
+                <option value="">Sin ganador</option>
+    
+                {% for j in jugadores_premios["19 a 36"] %}
+                <option
+                    value="{{ j.id }}"
+                    {% if premios_especiales["Long Drive 19 a 36"].jugador_id == j.id %}selected{% endif %}
+                >
+                    {{ j.nombre }} (HCP {{ j.handicap }})
+                </option>
+                {% endfor %}
+    
+            </select>
+    
+            <button type="submit">
+                Guardar Premios Especiales
+            </button>
+    
+        </form>
+    
+     </div>
+    
     <h2>Match por Equipos</h2>
 
     <div class="categoria">
