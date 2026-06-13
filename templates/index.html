@@ -198,6 +198,59 @@ background-attachment:fixed;
         {{ subtitulo2 }}
     </div>
 
+    <div class="categoria" style="margin-bottom:25px;">
+
+        <h2>🏆 Premios Especiales</h2>
+    
+        <table>
+            <thead>
+                <tr>
+                    <th>Premio</th>
+                    <th>Categoría</th>
+                    <th>Ganador</th>
+                </tr>
+            </thead>
+    
+            <tbody>
+    
+                <tr>
+                    <td>Approach</td>
+                    <td>0 a 18</td>
+                    <td>
+                        {{ premios_especiales["Approach 0 a 18"].jugador_nombre or "-" }}
+                    </td>
+                </tr>
+    
+                <tr>
+                    <td>Approach</td>
+                    <td>19 a 36</td>
+                    <td>
+                        {{ premios_especiales["Approach 19 a 36"].jugador_nombre or "-" }}
+                    </td>
+                </tr>
+    
+                <tr>
+                    <td>Long Drive</td>
+                    <td>0 a 18</td>
+                    <td>
+                        {{ premios_especiales["Long Drive 0 a 18"].jugador_nombre or "-" }}
+                    </td>
+                </tr>
+    
+                <tr>
+                    <td>Long Drive</td>
+                    <td>19 a 36</td>
+                    <td>
+                        {{ premios_especiales["Long Drive 19 a 36"].jugador_nombre or "-" }}
+                    </td>
+                </tr>
+    
+            </tbody>
+    
+        </table>
+    
+    </div>
+    
     <div class="listas">
 
         {% for categoria, lista in categorias.items() %}
