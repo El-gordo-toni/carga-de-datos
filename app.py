@@ -1575,6 +1575,16 @@ def borrar(id):
 
     return redirect("/admin?ok=resultado_borrado")
 
+@app.route("/descargar_backup")
+def descargar_backup():
+    if not admin_logueado():
+        return redirect("/login")
+
+    return send_file(
+        "/var/data/scores.db",
+        as_attachment=True,
+        download_name="scores_fecha4.db"
+    )
 
 @app.route("/borrar_jugador/<int:id>")
 def borrar_jugador(id):
