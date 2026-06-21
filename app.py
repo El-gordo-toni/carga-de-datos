@@ -1618,6 +1618,17 @@ def reset_jugadores():
 
     return redirect("/admin?ok=todo_borrado")
 
+@app.route("/descargar_backup")
+def descargar_backup():
+
+    if not admin_logueado():
+        return redirect("/login")
+
+    return send_file(
+        "/var/data/scores.db",
+        as_attachment=True,
+        download_name="scores_render_backup.db"
+    )
 
 if __name__ == "__main__":
     init_db()
