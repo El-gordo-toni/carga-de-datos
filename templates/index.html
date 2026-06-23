@@ -369,18 +369,55 @@ background-attachment:fixed;
             {% for m in matches_equipos.matches %}
             <tr>
                 <td>{{ m.numero_match }}</td>
-                <td>{{ m.jugador_team22 }}{% if m.comodin_team22 == 1 %} ⭐{% endif %}</td>
+
+                <td>
+                    {{ m.jugador_team22 }}
+                    {% if m.comodin_team22 == 1 %} ⭐{% endif %}
+
+                    {% if m.modo == "pareja" and m.jugador_team22_2 %}
+                        <br>
+                        {{ m.jugador_team22_2 }}
+                        {% if m.comodin_team22_2 == 1 %} ⭐{% endif %}
+                    {% endif %}
+                </td>
+
                 <td>{{ m.puntos_partido_team22 }}</td>
+
                 <td>VS</td>
-                <td>{{ m.jugador_aguilas }}{% if m.comodin_aguilas == 1 %} ⭐{% endif %}</td>
+
+                <td>
+                    {{ m.jugador_aguilas }}
+                    {% if m.comodin_aguilas == 1 %} ⭐{% endif %}
+
+                    {% if m.modo == "pareja" and m.jugador_aguilas_2 %}
+                        <br>
+                        {{ m.jugador_aguilas_2 }}
+                        {% if m.comodin_aguilas_2 == 1 %} ⭐{% endif %}
+                    {% endif %}
+                </td>
+
                 <td>{{ m.puntos_partido_aguilas }}</td>
+
                 <td><strong>{{ m.puntos_tabla_team22 }}</strong></td>
                 <td><strong>{{ m.puntos_tabla_aguilas }}</strong></td>
-                <td>{{ m.resultado }}</td>
+
+                <td>
+                    {{ m.resultado }}
+                    {% if m.modo == "pareja" %}
+                        <br>
+                        <small>(Pareja)</small>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+
+    {% else %}
+
+    <p style="text-align:center;">Sin matches cargados</p>
+
+    {% endif %}
 
     <div style="
         margin-top: 25px;
@@ -402,7 +439,7 @@ background-attachment:fixed;
 
         <br><br>
 
-        Puntos totales
+        Puntos acumulados
         <br>
 
         Team 22 {{ matches_equipos.total_team22 }}
@@ -415,18 +452,96 @@ background-attachment:fixed;
 
     </div>
 
-    {% else %}
-
-    <p style="text-align:center;">Sin matches cargados</p>
-
-    {% endif %}
-
 </div>
+
     <div class="admin-link">
         <a href="/admin">Panel admin</a>
     </div>
 
 </div>
+
+<h2>Ranking Anual por Categorías</h2>
+
+{% for categoria, lista in ranking_anual["categorias"].items() %}
+
+<div class="categoria" style="margin-top:30px;">
+
+    <h2>Ranking Anual Categoría {{ categoria }}</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Pos</th>
+                <th>Jugador</th>
+            
+
+                {% for fecha in ranking_anual["fechas"] %}
+                    <th>F{{ fecha }}</th>
+                {% endfor %}
+
+                <th>Total</th>
+            </tr>
+        </thead>
+
+        <tbody>
+        {% for j in lista %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ j.nombre }}</td>
+                
+
+                {% for fecha in ranking_anual["fechas"] %}
+                    <td>{{ j.fechas[fecha] }}</td>
+                {% endfor %}
+
+                <td><strong>{{ j.total }}</strong></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
+{% endfor %}
+
+<div class="categoria" style="margin-top:30px;">
+
+    <h2>Ranking Anual General</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Pos</th>
+                <th>Jugador</th>
+                
+
+                {% for fecha in ranking_anual["fechas"] %}
+                    <th>F{{ fecha }}</th>
+                {% endfor %}
+
+                <th>Total</th>
+            </tr>
+        </thead>
+
+        <tbody>
+        {% for j in ranking_anual["general"] %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ j.nombre }}</td>
+                
+
+                {% for fecha in ranking_anual["fechas"] %}
+                    <td>{{ j.fechas[fecha] }}</td>
+                {% endfor %}
+
+                <td><strong>{{ j.total }}</strong></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
 
 </body>
 </html>
