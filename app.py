@@ -2,6 +2,7 @@ from flask import Flask, request, redirect, render_template, send_file, session
 from flask_socketio import SocketIO
 import sqlite3
 import os
+from datetime import datetime
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Font
 from io import BytesIO
@@ -18,7 +19,6 @@ UPLOAD_FOLDER = "uploads"
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-
 def categoria_por_hcp(hcp):
     if 0 <= hcp <= 12:
         return "0 a 12"
@@ -28,12 +28,73 @@ def categoria_por_hcp(hcp):
         return "23 a 36"
     return "Sin categoría"
 
+def crear_o_actualizar_jugador_ranking(nombre, handicap, categoria_anual):
+    con = db()
+
+    jugador = con.execute("""
+        SELECT *
+        FROM jugadores
+        WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(?))
+    """, (nombre,)).fetchone()
+
+    if jugador:
+        jugador_id = jugador["id"]
+
+        con.execute("""
+            UPDATE jugadores
+            SET handicap = ?, categoria_anual = ?
+            WHERE id = ?
+        """, (handicap, categoria_anual, jugador_id))
+
+    else:
+        con.execute("""
+            INSERT INTO jugadores (nombre, handicap, categoria_anual)
+            VALUES (?, ?, ?)
+        """, (nombre, handicap, categoria_anual))
+
+        jugador_id = con.execute("""
+            SELECT last_insert_rowid()
+        """).fetchone()[0]
+
+        matricula = f"MGT-{jugador_id:04d}"
+
+        con.execute("""
+            UPDATE jugadores
+            SET matricula = ?
+            WHERE id = ?
+        """, (matricula, jugador_id))
+
+    con.commit()
+    con.close()
+
+    return jugador_id
+
+def guardar_punto_ranking(jugador_id, tipo_ranking, numero_fecha, puntos):
+    if puntos in [None, "", "-"]:
+        return
+
+    con = db()
+
+    con.execute("""
+        INSERT INTO ranking_fechas
+        (jugador_id, tipo_ranking, numero_fecha, puntos)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(jugador_id, tipo_ranking, numero_fecha)
+        DO UPDATE SET puntos = excluded.puntos
+    """, (
+        jugador_id,
+        tipo_ranking,
+        numero_fecha,
+        float(puntos)
+    ))
+
+    con.commit()
+    con.close()
 
 def db():
     con = sqlite3.connect(DB_PATH)
     con.row_factory = sqlite3.Row
     return con
-
 
 def init_db():
     con = db()
@@ -159,9 +220,62 @@ def init_db():
                 VALUES (?, ?, ?, NULL)
             """, premio)
 
+    con.execute("""
+    CREATE TABLE IF NOT EXISTS ranking_anual (
+        jugador_id INTEGER PRIMARY KEY,
+        nombre TEXT NOT NULL,
+        handicap INTEGER NOT NULL,
+        categoria TEXT NOT NULL,
+
+        puntos_categoria_previos REAL NOT NULL DEFAULT 0,
+        puntos_categoria_actual REAL NOT NULL DEFAULT 0,
+        puntos_categoria_total REAL NOT NULL DEFAULT 0,
+
+        puntos_general_previos REAL NOT NULL DEFAULT 0,
+        puntos_general_actual REAL NOT NULL DEFAULT 0,
+        puntos_general_total REAL NOT NULL DEFAULT 0
+        )
+    """)        
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS ranking_fechas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            jugador_id INTEGER NOT NULL,
+            tipo_ranking TEXT NOT NULL,
+            numero_fecha INTEGER NOT NULL,
+            puntos REAL NOT NULL DEFAULT 0,
+            UNIQUE(jugador_id, tipo_ranking, numero_fecha)
+        )
+    """)
     con.commit()
     con.close()
 
+def asignar_matriculas():
+    con = db()
+
+    jugadores = con.execute("""
+        SELECT id, matricula
+        FROM jugadores
+        ORDER BY id
+    """).fetchall()
+
+    for jugador in jugadores:
+
+        if jugador["matricula"]:
+            continue
+
+        matricula = f"MGT-{jugador['id']:04d}"
+
+        con.execute("""
+            UPDATE jugadores
+            SET matricula = ?
+            WHERE id = ?
+        """, (
+            matricula,
+            jugador["id"]
+        ))
+
+    con.commit()
+    con.close()
 
 def admin_logueado():
     return session.get("admin") is True
@@ -180,6 +294,7 @@ def redireccion_post_carga(ok):
         return redirect(f"/colaborador?ok={ok}")
 
     return redirect("/login")
+
 def obtener_configuracion():
     con = db()
 
@@ -202,7 +317,6 @@ def obtener_configuracion():
         "fondo": ""
     }
 
-
 def puntos_por_posicion(posicion):
     puntos = {
         1: 20,
@@ -218,7 +332,6 @@ def puntos_por_posicion(posicion):
     }
 
     return puntos.get(posicion, 0)
-
 
 def agregar_puntos(lista):
     lista_ordenada = sorted(
@@ -283,7 +396,6 @@ def obtener_categorias():
     con.close()
     return categorias
 
-
 def obtener_general():
     con = db()
 
@@ -296,6 +408,229 @@ def obtener_general():
     con.close()
 
     return agregar_puntos(lista)
+
+def inicializar_ranking_anual():
+    con = db()
+
+    jugadores = con.execute("""
+        SELECT *
+        FROM jugadores
+    """).fetchall()
+
+    for jugador in jugadores:
+
+        existe = con.execute("""
+            SELECT jugador_id
+            FROM ranking_anual
+            WHERE jugador_id = ?
+        """, (jugador["id"],)).fetchone()
+
+        if not existe:
+
+            categoria = categoria_por_hcp(
+                int(jugador["handicap"])
+            )
+
+            con.execute("""
+                INSERT INTO ranking_anual
+                (
+                    jugador_id,
+                    nombre,
+                    handicap,
+                    categoria
+                )
+                VALUES (?, ?, ?, ?)
+            """, (
+                jugador["id"],
+                jugador["nombre"],
+                jugador["handicap"],
+                categoria
+            ))
+
+    con.commit()
+    con.close()    
+
+def actualizar_puntos_actuales_ranking():
+    con = db()
+
+    con.execute("""
+        UPDATE ranking_anual
+        SET
+            puntos_categoria_actual = 0,
+            puntos_categoria_total = puntos_categoria_previos,
+            puntos_general_actual = 0,
+            puntos_general_total = puntos_general_previos
+    """)
+
+    categorias = obtener_categorias()
+
+    for categoria, jugadores in categorias.items():
+        for jugador in jugadores:
+            con.execute("""
+                UPDATE ranking_anual
+                SET
+                    puntos_categoria_actual = ?,
+                    puntos_categoria_total = puntos_categoria_previos + ?
+                WHERE jugador_id = ?
+            """, (
+                jugador["puntos"],
+                jugador["puntos"],
+                jugador["jugador_id"]
+            ))
+
+    general = obtener_general()
+
+    for jugador in general:
+        con.execute("""
+            UPDATE ranking_anual
+            SET
+                puntos_general_actual = ?,
+                puntos_general_total = puntos_general_previos + ?
+            WHERE jugador_id = ?
+        """, (
+            jugador["puntos"],
+            jugador["puntos"],
+            jugador["jugador_id"]
+        ))
+
+    con.commit()
+    con.close()
+
+def obtener_ranking_anual():
+    actualizar_puntos_actuales_ranking()
+
+    con = db()
+
+    rankings = {}
+
+    for categoria in ["0 a 12", "13 a 22", "23 a 36"]:
+        rankings[categoria] = con.execute("""
+            SELECT *
+            FROM ranking_anual
+            WHERE categoria = ?
+            ORDER BY puntos_categoria_total DESC, nombre ASC
+        """, (categoria,)).fetchall()
+
+    general = con.execute("""
+        SELECT *
+        FROM ranking_anual
+        ORDER BY puntos_general_total DESC, nombre ASC
+    """).fetchall()
+
+    con.close()
+
+    return {
+        "categorias": rankings,
+        "general": general
+    }
+
+def obtener_ultima_fecha_ranking():
+    con = db()
+
+    ultima = con.execute("""
+        SELECT MAX(numero_fecha) AS ultima
+        FROM ranking_fechas
+    """).fetchone()
+
+    con.close()
+
+    if ultima and ultima["ultima"]:
+        return int(ultima["ultima"])
+
+    return 0
+
+def obtener_proxima_fecha_ranking():
+    return obtener_ultima_fecha_ranking() + 1
+
+def obtener_ranking_por_fechas():
+    con = db()
+
+    fechas = con.execute("""
+        SELECT DISTINCT numero_fecha
+        FROM ranking_fechas
+        ORDER BY numero_fecha ASC
+    """).fetchall()
+
+    fechas = [f["numero_fecha"] for f in fechas]
+
+    jugadores = con.execute("""
+        SELECT id, nombre, handicap, categoria_anual
+        FROM jugadores
+        ORDER BY nombre ASC
+    """).fetchall()
+
+    datos = con.execute("""
+        SELECT jugador_id, tipo_ranking, numero_fecha, puntos
+        FROM ranking_fechas
+    """).fetchall()
+
+    con.close()
+
+    mapa = {}
+
+    for d in datos:
+        clave = (
+            d["jugador_id"],
+            d["tipo_ranking"],
+            d["numero_fecha"]
+        )
+        mapa[clave] = d["puntos"]
+
+    rankings = {
+        "categorias": {
+            "0 a 12": [],
+            "13 a 22": [],
+            "23 a 36": []
+        },
+        "general": [],
+        "fechas": fechas
+    }
+
+    for jugador in jugadores:
+        categoria = jugador["categoria_anual"]
+
+        fila_categoria = {
+            "nombre": jugador["nombre"],
+            "handicap": jugador["handicap"],
+            "fechas": {},
+            "total": 0
+        }
+
+        fila_general = {
+            "nombre": jugador["nombre"],
+            "handicap": jugador["handicap"],
+            "fechas": {},
+            "total": 0
+        }
+
+        for fecha in fechas:
+            puntos_cat = mapa.get((jugador["id"], "categoria", fecha))
+            puntos_gen = mapa.get((jugador["id"], "general", fecha))
+
+            fila_categoria["fechas"][fecha] = puntos_cat if puntos_cat is not None else "-"
+            fila_general["fechas"][fecha] = puntos_gen if puntos_gen is not None else "-"
+
+            if puntos_cat is not None:
+                fila_categoria["total"] += puntos_cat
+
+            if puntos_gen is not None:
+                fila_general["total"] += puntos_gen
+
+        if categoria in rankings["categorias"]:
+            rankings["categorias"][categoria].append(fila_categoria)
+
+        rankings["general"].append(fila_general)
+
+    for categoria in rankings["categorias"]:
+        rankings["categorias"][categoria].sort(
+            key=lambda x: (-x["total"], x["nombre"])
+        )
+
+    rankings["general"].sort(
+        key=lambda x: (-x["total"], x["nombre"])
+    )
+
+    return rankings
 
 def obtener_jugadores_premios():
     con = db()
@@ -320,7 +655,6 @@ def obtener_jugadores_premios():
         "0 a 18": jugadores_0_18,
         "19 a 36": jugadores_19_36
     }
-
 
 def obtener_premios_especiales():
     con = db()
@@ -363,7 +697,6 @@ def existe_comodin(equipo):
 
     return existe is not None
 
-
 def calcular_resultado_match(puntos_team22, puntos_aguilas, comodin_team22, comodin_aguilas):
     comodin_en_juego = comodin_team22 or comodin_aguilas
 
@@ -382,7 +715,6 @@ def calcular_resultado_match(puntos_team22, puntos_aguilas, comodin_team22, como
 
     return 0.5, 0.5, "Empate"
 
-
 def obtener_proximo_numero_match():
     con = db()
 
@@ -397,7 +729,6 @@ def obtener_proximo_numero_match():
         return int(ultimo["ultimo"]) + 1
 
     return 1
-
 
 def obtener_jugadores_equipos():
     con = db()
@@ -442,7 +773,6 @@ def obtener_jugadores_equipos():
 
     return team22, aguilas, team22_todos, aguilas_todos
 
-
 def obtener_matches_equipos():
     con = db()
 
@@ -450,40 +780,41 @@ def obtener_matches_equipos():
         SELECT
             m.id,
             m.numero_match,
-            m.jugador_team22_id,
-            m.jugador_aguilas_id,
+            m.modo,
+
             j22.nombre AS jugador_team22,
             j22.comodin AS comodin_team22,
+
+            j22b.nombre AS jugador_team22_2,
+            j22b.comodin AS comodin_team22_2,
+
             ja.nombre AS jugador_aguilas,
             ja.comodin AS comodin_aguilas,
+
+            jab.nombre AS jugador_aguilas_2,
+            jab.comodin AS comodin_aguilas_2,
+
             m.puntos_partido_team22,
             m.puntos_partido_aguilas,
             m.puntos_tabla_team22,
             m.puntos_tabla_aguilas,
             m.resultado,
             m.resultado_cargado
-        FROM matches_equipos m
-        JOIN jugadores_equipos j22
-            ON m.jugador_team22_id = j22.id
-        JOIN jugadores_equipos ja
-            ON m.jugador_aguilas_id = ja.id
-        ORDER BY m.numero_match ASC
-    """).fetchall()
 
-    pendientes = con.execute("""
-        SELECT
-            m.id,
-            m.numero_match,
-            j22.nombre AS jugador_team22,
-            j22.comodin AS comodin_team22,
-            ja.nombre AS jugador_aguilas,
-            ja.comodin AS comodin_aguilas
         FROM matches_equipos m
+
         JOIN jugadores_equipos j22
             ON m.jugador_team22_id = j22.id
+
         JOIN jugadores_equipos ja
             ON m.jugador_aguilas_id = ja.id
-        WHERE m.resultado_cargado = 0
+
+        LEFT JOIN jugadores_equipos j22b
+            ON m.jugador_team22_2_id = j22b.id
+
+        LEFT JOIN jugadores_equipos jab
+            ON m.jugador_aguilas_2_id = jab.id
+
         ORDER BY m.numero_match ASC
     """).fetchall()
 
@@ -507,20 +838,22 @@ def obtener_matches_equipos():
     else:
         ganador = "Empate"
 
+    pendientes = [
+        m for m in matches
+        if int(m["resultado_cargado"]) == 0
+    ]
+
     return {
         "matches": matches,
         "pendientes": pendientes,
-        "total_team22": total_team22,
-        "total_aguilas": total_aguilas,
-        "ganador": ganador,
         "total_dia_team22": total_dia_team22,
         "total_dia_aguilas": total_dia_aguilas,
         "previos_team22": previos_team22,
         "previos_aguilas": previos_aguilas,
         "total_team22": total_team22,
         "total_aguilas": total_aguilas,
-            }
-
+        "ganador": ganador
+    }
 
 @app.route("/")
 def index():
@@ -532,13 +865,13 @@ def index():
         general=obtener_general(),
         matches_equipos=obtener_matches_equipos(),
         premios_especiales=obtener_premios_especiales(),
+        ranking_anual=obtener_ranking_por_fechas(),
         titulo=config["titulo"],
         subtitulo=config["subtitulo"],
         subtitulo2=config["subtitulo2"],
         logo=config["logo"],
         fondo=config["fondo"]
     )
-
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -575,6 +908,7 @@ def admin():
     else:
         if not admin_logueado():
             return redirect("/login")
+
     error = request.args.get("error")
     ok = request.args.get("ok")
 
@@ -609,7 +943,10 @@ def admin():
         handicap = jugador["handicap"]
         gross = ida + vuelta
         neto = gross - handicap
-        categoria = categoria_por_hcp(handicap)
+        categoria = jugador["categoria_anual"]
+
+        if not categoria:
+            categoria = categoria_por_hcp(handicap)
 
         con.execute("""
             INSERT INTO tarjetas
@@ -643,11 +980,49 @@ def admin():
         ORDER BY jugadores.nombre ASC
     """).fetchall()
 
+    jugadores_usados = con.execute("""
+        SELECT jugador_team22_id AS jugador_id
+        FROM matches_equipos
+
+        UNION
+
+        SELECT jugador_aguilas_id AS jugador_id
+        FROM matches_equipos
+
+        UNION
+
+        SELECT jugador_team22_2_id AS jugador_id
+        FROM matches_equipos
+        WHERE jugador_team22_2_id IS NOT NULL
+
+        UNION
+
+        SELECT jugador_aguilas_2_id AS jugador_id
+        FROM matches_equipos
+        WHERE jugador_aguilas_2_id IS NOT NULL
+    """).fetchall()
+
+    ids_usados = {
+        j["jugador_id"]
+        for j in jugadores_usados
+        if j["jugador_id"] is not None
+    }
+
     con.close()
 
     config = obtener_configuracion()
 
     team22, aguilas, team22_todos, aguilas_todos = obtener_jugadores_equipos()
+
+    team22 = [
+        j for j in team22
+        if j["id"] not in ids_usados
+    ]
+
+    aguilas = [
+        j for j in aguilas
+        if j["id"] not in ids_usados
+    ]
 
     return render_template(
         "admin.html",
@@ -669,6 +1044,9 @@ def admin():
         comodin_aguilas_existe=existe_comodin("Águilas"),
         jugadores_premios=obtener_jugadores_premios(),
         premios_especiales=obtener_premios_especiales(),
+        ranking_anual=obtener_ranking_por_fechas(),
+        ultima_fecha_ranking=obtener_ultima_fecha_ranking(),
+        proxima_fecha_ranking=obtener_proxima_fecha_ranking(),
         error=error,
         ok=ok
     )
@@ -738,7 +1116,6 @@ def guardar_configuracion():
 
     return redirect("/admin?ok=configuracion_guardada")
 
-
 @app.route("/cargar_excel", methods=["POST"])
 def cargar_excel():
     if not admin_logueado():
@@ -773,19 +1150,45 @@ def cargar_excel():
         if handicap < 0 or handicap > 36:
             continue
 
-        try:
-            con.execute("""
-                INSERT INTO jugadores (nombre, handicap)
-                VALUES (?, ?)
-            """, (nombre, handicap))
-        except sqlite3.IntegrityError:
-            pass
+        categoria_anual = categoria_por_hcp(handicap)
+
+        existe = con.execute("""
+            SELECT id
+            FROM jugadores
+            WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(?))
+        """, (nombre,)).fetchone()
+
+        if existe:
+            continue
+
+        con.execute("""
+            INSERT INTO jugadores (nombre, handicap, categoria_anual)
+            VALUES (?, ?, ?)
+        """, (
+            nombre,
+            handicap,
+            categoria_anual
+        ))
+
+        jugador_id = con.execute("""
+            SELECT last_insert_rowid()
+        """).fetchone()[0]
+
+        matricula = f"MGT-{jugador_id:04d}"
+
+        con.execute("""
+            UPDATE jugadores
+            SET matricula = ?
+            WHERE id = ?
+        """, (
+            matricula,
+            jugador_id
+        ))
 
     con.commit()
     con.close()
 
     return redirect("/admin?ok=jugadores_cargados")
-
 
 @app.route("/agregar_jugador", methods=["POST"])
 def agregar_jugador():
@@ -801,13 +1204,27 @@ def agregar_jugador():
     if handicap < 0 or handicap > 36:
         return redirect("/admin?error=handicap_invalido")
 
+    categoria_anual = categoria_por_hcp(handicap)
+
     con = db()
 
     try:
         con.execute("""
-            INSERT INTO jugadores (nombre, handicap)
-            VALUES (?, ?)
-        """, (nombre, handicap))
+            INSERT INTO jugadores (nombre, handicap, categoria_anual)
+            VALUES (?, ?, ?)
+        """, (nombre, handicap, categoria_anual))
+
+        jugador_id = con.execute("""
+            SELECT last_insert_rowid()
+        """).fetchone()[0]
+
+        matricula = f"MGT-{jugador_id:04d}"
+
+        con.execute("""
+            UPDATE jugadores
+            SET matricula = ?
+            WHERE id = ?
+        """, (matricula, jugador_id))
 
         con.commit()
         con.close()
@@ -817,7 +1234,6 @@ def agregar_jugador():
     except sqlite3.IntegrityError:
         con.close()
         return redirect("/admin?error=jugador_ya_existe")
-
 
 @app.route("/editar_jugador/<int:id>", methods=["POST"])
 def editar_jugador(id):
@@ -870,7 +1286,6 @@ def editar_jugador(id):
         con.close()
         return redirect("/admin?error=jugador_ya_existe")
 
-
 @app.route("/editar_resultado/<int:id>", methods=["POST"])
 def editar_resultado(id):
     if not admin_logueado():
@@ -907,7 +1322,6 @@ def editar_resultado(id):
 
     return redirect("/admin?ok=resultado_modificado")
 
-
 @app.route("/agregar_jugador_equipo", methods=["POST"])
 def agregar_jugador_equipo():
     if not admin_logueado():
@@ -938,7 +1352,6 @@ def agregar_jugador_equipo():
     con.close()
 
     return redirect("/admin?ok=jugador_equipo_agregado")
-
 
 @app.route("/borrar_jugador_equipo/<int:id>")
 def borrar_jugador_equipo(id):
@@ -971,20 +1384,52 @@ def crear_cruce_equipo():
         return redirect("/login")
 
     numero_match = obtener_proximo_numero_match()
+
+    modo = request.form.get("modo", "individual")
+
     jugador_team22_id = int(request.form["jugador_team22_id"])
     jugador_aguilas_id = int(request.form["jugador_aguilas_id"])
 
+    jugador_team22_2_id = request.form.get("jugador_team22_2_id")
+    jugador_aguilas_2_id = request.form.get("jugador_aguilas_2_id")
+
     con = db()
 
-    ya_usado = con.execute("""
-        SELECT id
-        FROM matches_equipos
-        WHERE jugador_team22_id = ?
-        OR jugador_aguilas_id = ?
-    """, (
+    ids_jugadores = [
         jugador_team22_id,
         jugador_aguilas_id
-    )).fetchone()
+    ]
+
+    if modo == "pareja":
+        if not jugador_team22_2_id or not jugador_aguilas_2_id:
+            con.close()
+            return redirect("/admin?error=pareja_incompleta")
+
+        jugador_team22_2_id = int(jugador_team22_2_id)
+        jugador_aguilas_2_id = int(jugador_aguilas_2_id)
+
+        ids_jugadores.extend([
+            jugador_team22_2_id,
+            jugador_aguilas_2_id
+        ])
+    else:
+        jugador_team22_2_id = None
+        jugador_aguilas_2_id = None
+
+    if len(ids_jugadores) != len(set(ids_jugadores)):
+        con.close()
+        return redirect("/admin?error=jugador_repetido_pareja")
+
+    placeholders = ",".join("?" for _ in ids_jugadores)
+
+    ya_usado = con.execute(f"""
+        SELECT id
+        FROM matches_equipos
+        WHERE jugador_team22_id IN ({placeholders})
+        OR jugador_aguilas_id IN ({placeholders})
+        OR jugador_team22_2_id IN ({placeholders})
+        OR jugador_aguilas_2_id IN ({placeholders})
+    """, ids_jugadores * 4).fetchone()
 
     if ya_usado:
         con.close()
@@ -994,15 +1439,21 @@ def crear_cruce_equipo():
         INSERT INTO matches_equipos
         (
             numero_match,
+            modo,
             jugador_team22_id,
+            jugador_team22_2_id,
             jugador_aguilas_id,
+            jugador_aguilas_2_id,
             resultado
         )
-        VALUES (?, ?, ?, 'Pendiente')
+        VALUES (?, ?, ?, ?, ?, ?, 'Pendiente')
     """, (
         numero_match,
+        modo,
         jugador_team22_id,
-        jugador_aguilas_id
+        jugador_team22_2_id,
+        jugador_aguilas_id,
+        jugador_aguilas_2_id
     ))
 
     con.commit()
@@ -1158,7 +1609,6 @@ def editar_match_equipo(id):
 
     return redirect("/admin?ok=match_equipo_modificado")
 
-
 @app.route("/borrar_match_equipo/<int:id>")
 def borrar_match_equipo(id):
     if not admin_logueado():
@@ -1177,6 +1627,35 @@ def borrar_match_equipo(id):
 
     return redirect("/admin?ok=match_equipo_borrado")
 
+@app.route("/cerrar_match_play")
+def cerrar_match_play():
+    if not admin_logueado():
+        return redirect("/login")
+
+    matches_data = obtener_matches_equipos()
+
+    total_dia_team22 = float(matches_data["total_dia_team22"])
+    total_dia_aguilas = float(matches_data["total_dia_aguilas"])
+
+    con = db()
+
+    con.execute("""
+        UPDATE puntos_equipos
+        SET puntos_previos = puntos_previos + ?
+        WHERE equipo = 'Team 22'
+    """, (total_dia_team22,))
+
+    con.execute("""
+        UPDATE puntos_equipos
+        SET puntos_previos = puntos_previos + ?
+        WHERE equipo = 'Águilas'
+    """, (total_dia_aguilas,))
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redirect("/admin?ok=match_play_cerrado")
 
 @app.route("/reset_matches_equipos")
 def reset_matches_equipos():
@@ -1312,7 +1791,6 @@ def reset_team22():
 
     return redirect("/admin?ok=team22_borrado")
 
-
 @app.route("/reset_aguilas")
 def reset_aguilas():
     if not admin_logueado():
@@ -1401,6 +1879,356 @@ def guardar_premios_especiales():
     con.close()
 
     return redireccion_post_carga("premios_guardados")
+
+@app.route("/cerrar_fecha_ranking")
+def cerrar_fecha_ranking():
+    if not admin_logueado():
+        return redirect("/login")
+
+    numero_fecha = obtener_proxima_fecha_ranking()
+
+    categorias = obtener_categorias()
+    general = obtener_general()
+
+    con = db()
+
+    for categoria, jugadores in categorias.items():
+        for jugador in jugadores:
+            con.execute("""
+                INSERT INTO ranking_fechas
+                (jugador_id, tipo_ranking, numero_fecha, puntos)
+                VALUES (?, 'categoria', ?, ?)
+                ON CONFLICT(jugador_id, tipo_ranking, numero_fecha)
+                DO UPDATE SET puntos = excluded.puntos
+            """, (
+                jugador["jugador_id"],
+                numero_fecha,
+                jugador["puntos"]
+            ))
+
+    for jugador in general:
+        con.execute("""
+            INSERT INTO ranking_fechas
+            (jugador_id, tipo_ranking, numero_fecha, puntos)
+            VALUES (?, 'general', ?, ?)
+            ON CONFLICT(jugador_id, tipo_ranking, numero_fecha)
+            DO UPDATE SET puntos = excluded.puntos
+        """, (
+            jugador["jugador_id"],
+            numero_fecha,
+            jugador["puntos"]
+        ))
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redirect(f"/admin?ok=fecha_{numero_fecha}_cerrada")
+
+@app.route("/importar_ranking_fecha", methods=["POST"])
+def importar_ranking_fecha():
+    if not admin_logueado():
+        return redirect("/login")
+
+    archivo = request.files.get("archivo_ranking")
+    tipo_ranking = request.form.get("tipo_ranking")
+    numero_fecha = int(request.form.get("numero_fecha"))
+
+    if not archivo:
+        return redirect("/admin?error=sin_archivo")
+
+    if not archivo.filename.endswith(".xlsx"):
+        return redirect("/admin?error=archivo_invalido")
+
+    if tipo_ranking not in ["categoria", "general"]:
+        return redirect("/admin?error=tipo_ranking_invalido")
+
+    ruta = os.path.join(UPLOAD_FOLDER, archivo.filename)
+    archivo.save(ruta)
+
+    workbook = load_workbook(ruta, data_only=True)
+    con = db()
+
+    hojas = ["Ranking"]
+
+    for nombre_hoja in hojas:
+        if nombre_hoja not in workbook.sheetnames:
+            continue
+
+        hoja = workbook[nombre_hoja]
+
+        encabezados = {}
+
+        for col in range(1, hoja.max_column + 1):
+            valor = hoja.cell(row=1, column=col).value
+
+            if valor:
+                encabezados[str(valor).strip().lower()] = col
+
+        col_matricula = encabezados.get("matricula")
+        col_puntos = encabezados.get("puntos")
+
+        if not col_matricula or not col_puntos:
+            continue
+
+        for fila in range(2, hoja.max_row + 1):
+            matricula = hoja.cell(row=fila, column=col_matricula).value
+            puntos = hoja.cell(row=fila, column=col_puntos).value
+
+            if not matricula or puntos is None:
+                continue
+
+            matricula = str(matricula).strip()
+
+            jugador = con.execute("""
+                SELECT id
+                FROM jugadores
+                WHERE matricula = ?
+            """, (matricula,)).fetchone()
+
+            if not jugador:
+                continue
+
+            con.execute("""
+                INSERT INTO ranking_fechas
+                (jugador_id, tipo_ranking, numero_fecha, puntos)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(jugador_id, tipo_ranking, numero_fecha)
+                DO UPDATE SET puntos = excluded.puntos
+            """, (
+                jugador["id"],
+                tipo_ranking,
+                numero_fecha,
+                float(puntos)
+            ))
+
+    con.commit()
+    socketio.emit("actualizar_tabla")
+    con.close()
+
+    return redirect("/admin?ok=ranking_importado")
+
+@app.route("/importar_categorias_anuales", methods=["POST"])
+def importar_categorias_anuales():
+
+    if not admin_logueado():
+        return redirect("/login")
+
+    archivo = request.files.get("archivo_categorias")
+
+    if not archivo:
+        return redirect("/admin?error=sin_archivo")
+
+    ruta = os.path.join(UPLOAD_FOLDER, archivo.filename)
+    archivo.save(ruta)
+
+    wb = load_workbook(ruta, data_only=True)
+
+    con = db()
+
+    categorias = {
+        "0 a 12": "0 a 12",
+        "13 a 22": "13 a 22",
+        "23 a 36": "23 a 36"
+    }
+
+    for nombre_hoja, categoria in categorias.items():
+
+        if nombre_hoja not in wb.sheetnames:
+            continue
+
+        hoja = wb[nombre_hoja]
+
+        for fila in range(2, hoja.max_row + 1):
+
+            matricula = hoja.cell(row=fila, column=1).value
+
+            if not matricula:
+                continue
+
+            matricula = str(matricula).strip()
+
+            con.execute("""
+                UPDATE jugadores
+                SET categoria_anual = ?
+                WHERE matricula = ?
+            """, (
+                categoria,
+                matricula
+            ))
+
+    con.commit()
+    con.close()
+
+    return redirect("/admin?ok=categorias_importadas")
+
+@app.route("/descargar_plantilla_ranking")
+def descargar_plantilla_ranking():
+    if not admin_logueado():
+        return redirect("/login")
+
+    con = db()
+
+    jugadores = con.execute("""
+        SELECT matricula, nombre, handicap
+        FROM jugadores
+        ORDER BY nombre ASC
+    """).fetchall()
+
+    con.close()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Ranking"
+
+    encabezados = [
+        "Matricula",
+        "Nombre",
+        "HCP",
+        "Puntos"
+    ]
+
+    ws.append(encabezados)
+
+    for celda in ws[1]:
+        celda.font = Font(bold=True)
+
+    for j in jugadores:
+        ws.append([
+            j["matricula"],
+            j["nombre"],
+            j["handicap"],
+            ""
+        ])
+
+    for columna in ws.columns:
+        max_length = 0
+        letra = columna[0].column_letter
+
+        for celda in columna:
+            if celda.value:
+                max_length = max(max_length, len(str(celda.value)))
+
+        ws.column_dimensions[letra].width = max_length + 3
+
+    archivo = BytesIO()
+    wb.save(archivo)
+    archivo.seek(0)
+
+    return send_file(
+        archivo,
+        as_attachment=True,
+        download_name="plantilla_ranking_anual.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+@app.route("/cargar_jugadores_categoria", methods=["POST"])
+def cargar_jugadores_categoria():
+    if not admin_logueado():
+        return redirect("/login")
+
+    categoria_anual = request.form["categoria_anual"]
+    archivo = request.files.get("archivo_categoria")
+
+    if not archivo:
+        return redirect("/admin?error=sin_archivo")
+
+    if not archivo.filename.endswith(".xlsx"):
+        return redirect("/admin?error=archivo_invalido")
+
+    ruta = os.path.join(UPLOAD_FOLDER, archivo.filename)
+    archivo.save(ruta)
+
+    workbook = load_workbook(ruta, data_only=True)
+    hoja = workbook.active
+
+    for fila in hoja.iter_rows(min_row=2, values_only=True):
+        nombre = fila[0]
+        handicap = fila[1]
+
+        if not nombre or handicap is None:
+            continue
+
+        nombre = str(nombre).strip()
+        handicap = int(handicap)
+
+        jugador_id = crear_o_actualizar_jugador_ranking(
+            nombre,
+            handicap,
+            categoria_anual
+        )
+
+        # Columnas esperadas:
+        # Nombre | HCP | F1 Cat | F2 Cat | F3 Cat | F1 Gen | F2 Gen | F3 Gen
+        guardar_punto_ranking(jugador_id, "categoria", 1, fila[2] if len(fila) > 2 else None)
+        guardar_punto_ranking(jugador_id, "categoria", 2, fila[3] if len(fila) > 3 else None)
+        guardar_punto_ranking(jugador_id, "categoria", 3, fila[4] if len(fila) > 4 else None)
+
+        guardar_punto_ranking(jugador_id, "general", 1, fila[5] if len(fila) > 5 else None)
+        guardar_punto_ranking(jugador_id, "general", 2, fila[6] if len(fila) > 6 else None)
+        guardar_punto_ranking(jugador_id, "general", 3, fila[7] if len(fila) > 7 else None)
+
+    socketio.emit("actualizar_tabla")
+
+    return redirect("/admin?ok=jugadores_categoria_cargados")
+
+@app.route("/agregar_jugador_ranking_manual", methods=["POST"])
+def agregar_jugador_ranking_manual():
+    if not admin_logueado():
+        return redirect("/login")
+
+    nombre = request.form["nombre"].strip()
+    handicap = int(request.form["handicap"])
+    categoria_anual = request.form["categoria_anual"]
+
+    if not nombre:
+        return redirect("/admin?error=nombre_vacio")
+
+    jugador_id = crear_o_actualizar_jugador_ranking(
+        nombre,
+        handicap,
+        categoria_anual
+    )
+
+    guardar_punto_ranking(jugador_id, "categoria", 1, request.form.get("f1_cat"))
+    guardar_punto_ranking(jugador_id, "categoria", 2, request.form.get("f2_cat"))
+    guardar_punto_ranking(jugador_id, "categoria", 3, request.form.get("f3_cat"))
+
+    guardar_punto_ranking(jugador_id, "general", 1, request.form.get("f1_gen"))
+    guardar_punto_ranking(jugador_id, "general", 2, request.form.get("f2_gen"))
+    guardar_punto_ranking(jugador_id, "general", 3, request.form.get("f3_gen"))
+
+    socketio.emit("actualizar_tabla")
+
+    return redirect("/admin?ok=jugador_ranking_agregado")
+
+@app.route("/descargar_backup_db")
+def descargar_backup_db():
+    if not admin_logueado():
+        return redirect("/login")
+
+    fecha = datetime.now().strftime("%Y-%m-%d_%H-%M")
+
+    return send_file(
+        DB_PATH,
+        as_attachment=True,
+        download_name=f"backup_scores_{fecha}.db"
+    )
+
+@app.route("/restaurar_backup", methods=["POST"])
+def restaurar_backup():
+
+    if not admin_logueado():
+        return redirect("/login")
+
+    archivo = request.files.get("backup")
+
+    if not archivo:
+        return redirect("/admin?error=sin_backup")
+
+    archivo.save("/var/data/scores_nuevo.db")
+
+    return redirect("/admin?ok=backup_subido")
 
 @app.route("/descargar_resultados")
 def descargar_resultados():
@@ -1589,20 +2417,39 @@ def borrar_jugador(id):
 
     return redirect("/admin?ok=jugador_borrado")
 
-
-@app.route("/reset_resultados")
-def reset_resultados():
+@app.route("/limpiar_fecha_actual")
+def limpiar_fecha_actual():
     if not admin_logueado():
         return redirect("/login")
 
     con = db()
+
     con.execute("DELETE FROM tarjetas")
+    con.execute("DELETE FROM matches_equipos")
+
+    con.execute("""
+        UPDATE premios_especiales
+        SET jugador_id = NULL
+    """)
+
     con.commit()
     socketio.emit("actualizar_tabla")
     con.close()
 
-    return redirect("/admin?ok=resultados_borrados")
+    return redirect("/admin?ok=fecha_limpiada")
 
+@app.route("/test_ranking")
+def test_ranking():
+    con = db()
+
+    cantidad = con.execute("""
+        SELECT COUNT(*)
+        FROM ranking_anual
+    """).fetchone()[0]
+
+    con.close()
+
+    return f"Jugadores en ranking anual: {cantidad}"
 
 @app.route("/reset_jugadores")
 def reset_jugadores():
@@ -1618,42 +2465,57 @@ def reset_jugadores():
 
     return redirect("/admin?ok=todo_borrado")
 
-@app.route("/subir_backup_render", methods=["GET", "POST"])
-def subir_backup_render():
+@app.route("/confirmar_reset_total", methods=["GET", "POST"])
+def confirmar_reset_total():
+
     if not admin_logueado():
         return redirect("/login")
 
     if request.method == "POST":
-        archivo = request.files.get("backup")
 
-        if not archivo:
-            return "No se seleccionó archivo"
+        confirmacion = request.form.get("confirmacion", "").strip()
 
-        archivo.save("/var/data/scores_nuevo.db")
+        if confirmacion != "BORRAR TODO":
+            return render_template(
+                "confirmar_reset_total.html",
+                error="Debés escribir exactamente: BORRAR TODO"
+            )
 
-        return "Backup subido como scores_nuevo.db"
+        return redirect("/reset_todo")
 
-    return """
-    <form method="POST" enctype="multipart/form-data">
-        <input type="file" name="backup" accept=".db" required>
-        <button type="submit">Subir backup</button>
-    </form>
-    """
+    return render_template("confirmar_reset_total.html")
 
-@app.route("/descargar_backup")
-def descargar_backup():
-
+@app.route("/reset_todo")
+def reset_todo():
     if not admin_logueado():
         return redirect("/login")
 
-    return send_file(
-        "/var/data/scores.db",
-        as_attachment=True,
-        download_name="scores_render_backup.db"
-    )
+    con = db()
+
+    con.execute("DELETE FROM tarjetas")
+    con.execute("DELETE FROM jugadores")
+    con.execute("DELETE FROM jugadores_equipos")
+    con.execute("DELETE FROM matches_equipos")
+    con.execute("DELETE FROM ranking_fechas")
+    con.execute("DELETE FROM puntos_equipos")
+    con.execute("DELETE FROM premios_especiales")
+    con.execute("DELETE FROM configuracion")
+
+    con.commit()
+    con.close()
+
+    init_db()
+
+    socketio.emit("actualizar_tabla")
+
+    return redirect("/admin?ok=reset_total")
 
 if __name__ == "__main__":
     init_db()
+    asignar_matriculas()
+    inicializar_ranking_anual()
     socketio.run(app, host="127.0.0.1", port=5000, debug=True)
 else:
     init_db()
+    asignar_matriculas()
+    inicializar_ranking_anual()
