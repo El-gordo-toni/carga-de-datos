@@ -1618,6 +1618,28 @@ def reset_jugadores():
 
     return redirect("/admin?ok=todo_borrado")
 
+@app.route("/subir_backup_render", methods=["GET", "POST"])
+def subir_backup_render():
+    if not admin_logueado():
+        return redirect("/login")
+
+    if request.method == "POST":
+        archivo = request.files.get("backup")
+
+        if not archivo:
+            return "No se seleccionó archivo"
+
+        archivo.save("/var/data/scores_nuevo.db")
+
+        return "Backup subido como scores_nuevo.db"
+
+    return """
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="backup" accept=".db" required>
+        <button type="submit">Subir backup</button>
+    </form>
+    """
+
 @app.route("/descargar_backup")
 def descargar_backup():
 
