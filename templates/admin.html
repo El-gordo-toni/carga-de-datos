@@ -332,6 +332,14 @@
         <div class="alerta">Ese jugador ya tiene un match cargado.</div>
     {% endif %}
     
+    {% if error == "pareja_incompleta" %}
+        <div class="alerta">Para cargar un match en pareja tenés que seleccionar dos jugadores por equipo.</div>
+    {% endif %}
+
+    {% if error == "jugador_repetido_pareja" %}
+        <div class="alerta">No podés repetir el mismo jugador dentro del match.</div>
+    {% endif %}
+
     <div class="bloque">
         <h2>Configurar pantalla pública</h2>
 
@@ -342,25 +350,6 @@
             <input type="text" name="logo" value="{{ logo }}" placeholder="Ejemplo: logo.png">
             <input type="text" name="fondo" value="{{ fondo }}" placeholder="Ejemplo: fondo.jpg">
             <button type="submit">Guardar configuración</button>
-        </form>
-    </div>
-
-    <div class="bloque">
-        <h2>Cargar jugadores desde Excel</h2>
-
-        <form method="POST" action="/cargar_excel" enctype="multipart/form-data" class="form-excel">
-            <input type="file" name="archivo" accept=".xlsx" required>
-            <button type="submit">Subir Excel</button>
-        </form>
-    </div>
-
-    <div class="bloque">
-        <h2>Agregar jugador manual</h2>
-
-        <form method="POST" action="/agregar_jugador" class="form-manual">
-            <input type="text" name="nombre" placeholder="Nombre y apellido" required>
-            <input type="number" name="handicap" placeholder="HCP" min="0" max="36" required>
-            <button type="submit">Agregar jugador</button>
         </form>
     </div>
 
@@ -516,8 +505,20 @@
         <h2>Crear Cruce por Equipos</h2>
 
         <form method="POST" action="/crear_cruce_equipo" class="form-resultado">
+
             <input type="text" value="Match Nº {{ proximo_match }}" disabled>
 
+            <label>Modo Match</label>
+            <select
+                name="modo"
+                id="modo_match"
+                onchange="cambiarModoMatch()"
+            >
+                <option value="individual">Individual</option>
+                <option value="pareja">Pareja</option>
+            </select>
+
+            <label>Jugador Team 22</label>
             <select name="jugador_team22_id" required>
                 <option value="">Jugador Team 22</option>
                 {% for j in team22 %}
@@ -527,8 +528,21 @@
                 {% endfor %}
             </select>
 
+            <div id="team22_pareja" style="display:none;">
+                <label>Jugador Team 22 #2</label>
+                <select name="jugador_team22_2_id">
+                    <option value="">Seleccionar jugador</option>
+                    {% for j in team22 %}
+                        <option value="{{ j.id }}">
+                            {{ j.nombre }}{% if j.comodin == 1 %} ⭐{% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <input type="text" value="VS" disabled>
 
+            <label>Jugador Águilas</label>
             <select name="jugador_aguilas_id" required>
                 <option value="">Jugador Águilas</option>
                 {% for j in aguilas %}
@@ -538,7 +552,20 @@
                 {% endfor %}
             </select>
 
+            <div id="aguilas_pareja" style="display:none;">
+                <label>Jugador Águilas #2</label>
+                <select name="jugador_aguilas_2_id">
+                    <option value="">Seleccionar jugador</option>
+                    {% for j in aguilas %}
+                        <option value="{{ j.id }}">
+                            {{ j.nombre }}{% if j.comodin == 1 %} ⭐{% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <button type="submit">Crear cruce</button>
+
         </form>
     </div>
 
@@ -701,12 +728,20 @@
             <tbody>
                 {% for m in matches_equipos.matches %}
                 <tr>
+
                     <form method="POST" action="/editar_match_equipo/{{ m.id }}">
+
                         <td>{{ m.numero_match }}</td>
 
                         <td>
                             {{ m.jugador_team22 }}
                             {% if m.comodin_team22 == 1 %} ⭐{% endif %}
+
+                            {% if m.modo == "pareja" and m.jugador_team22_2 %}
+                                <br>
+                                {{ m.jugador_team22_2 }}
+                                {% if m.comodin_team22_2 == 1 %} ⭐{% endif %}
+                            {% endif %}
                         </td>
 
                         <td>
@@ -725,6 +760,12 @@
                         <td>
                             {{ m.jugador_aguilas }}
                             {% if m.comodin_aguilas == 1 %} ⭐{% endif %}
+
+                            {% if m.modo == "pareja" and m.jugador_aguilas_2 %}
+                                <br>
+                                {{ m.jugador_aguilas_2 }}
+                                {% if m.comodin_aguilas_2 == 1 %} ⭐{% endif %}
+                            {% endif %}
                         </td>
 
                         <td>
@@ -738,12 +779,27 @@
                             >
                         </td>
 
-                        <td><strong>{{ m.puntos_tabla_team22 }}</strong></td>
-                        <td><strong>{{ m.puntos_tabla_aguilas }}</strong></td>
-                        <td>{{ m.resultado }}</td>
+                        <td>
+                            <strong>{{ m.puntos_tabla_team22 }}</strong>
+                        </td>
 
                         <td>
-                            <button type="submit">Guardar</button>
+                            <strong>{{ m.puntos_tabla_aguilas }}</strong>
+                        </td>
+
+                        <td>
+                            {{ m.resultado }}
+
+                            {% if m.modo == "pareja" %}
+                                <br>
+                                <small>(Pareja)</small>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <button type="submit">
+                                Guardar
+                            </button>
                         </td>
 
                         <td>
@@ -755,11 +811,22 @@
                                 Borrar
                             </a>
                         </td>
+
                     </form>
+
                 </tr>
                 {% endfor %}
             </tbody>
+
         </table>
+
+        {% else %}
+
+            <p style="text-align:center;">
+                Sin matches cargados
+            </p>
+
+        {% endif %}
 
         <div style="
             margin-top: 25px;
@@ -781,7 +848,7 @@
 
             <br><br>
 
-            Puntos totales
+            Puntos acumulados
             <br>
 
             Team 22 {{ matches_equipos.total_team22 }}
@@ -794,15 +861,18 @@
 
         </div>
 
-        {% else %}
-
-        <p style="text-align:center;">Sin matches cargados</p>
-
-        {% endif %}
-
     </div>
 
+    
     <div class="acciones">
+        <a
+            class="reset descargar"
+            href="/cerrar_match_play"
+            onclick="return confirm('¿Seguro que querés cerrar el Match Play y acumular los puntos del día a los puntos totales?')"
+        >
+            Cerrar Match Play y acumular puntos
+        </a>
+
         <a
             class="reset"
             href="/reset_matches_equipos"
@@ -811,7 +881,7 @@
             Borrar matches por equipos
         </a>
     </div>
-
+    
     <h2>Posiciones por Categoría</h2>
 
     <div class="listas">
@@ -869,6 +939,59 @@
 
     </div>
 
+    <div class="bloque">
+        <h2>Cargar jugadores por categoría anual</h2>
+
+        <h3>Categoría 0 a 12</h3>
+        <form method="POST" action="/cargar_jugadores_categoria" enctype="multipart/form-data" class="form-excel">
+            <input type="hidden" name="categoria_anual" value="0 a 12">
+            <input type="file" name="archivo_categoria" accept=".xlsx" required>
+            <button type="submit">Subir 0 a 12</button>
+        </form>
+
+        <h3>Categoría 13 a 22</h3>
+        <form method="POST" action="/cargar_jugadores_categoria" enctype="multipart/form-data" class="form-excel">
+            <input type="hidden" name="categoria_anual" value="13 a 22">
+            <input type="file" name="archivo_categoria" accept=".xlsx" required>
+            <button type="submit">Subir 13 a 22</button>
+        </form>
+
+        <h3>Categoría 23 a 36</h3>
+        <form method="POST" action="/cargar_jugadores_categoria" enctype="multipart/form-data" class="form-excel">
+            <input type="hidden" name="categoria_anual" value="23 a 36">
+            <input type="file" name="archivo_categoria" accept=".xlsx" required>
+            <button type="submit">Subir 23 a 36</button>
+        </form>
+    </div>
+
+    <div class="bloque">
+        <h2>Agregar jugador manual al ranking anual</h2>
+
+        <form method="POST" action="/agregar_jugador_ranking_manual" class="form-manual">
+
+            <input type="text" name="nombre" placeholder="Nombre y apellido" required>
+
+            <input type="number" name="handicap" placeholder="HCP" min="0" max="36" required>
+
+            <select name="categoria_anual" required>
+                <option value="">Categoría anual</option>
+                <option value="0 a 12">0 a 12</option>
+                <option value="13 a 22">13 a 22</option>
+                <option value="23 a 36">23 a 36</option>
+            </select>
+
+            <input type="number" step="0.5" name="f1_cat" placeholder="F1 Cat">
+            <input type="number" step="0.5" name="f2_cat" placeholder="F2 Cat">
+            <input type="number" step="0.5" name="f3_cat" placeholder="F3 Cat">
+
+            <input type="number" step="0.5" name="f1_gen" placeholder="F1 Gen">
+            <input type="number" step="0.5" name="f2_gen" placeholder="F2 Gen">
+            <input type="number" step="0.5" name="f3_gen" placeholder="F3 Gen">
+
+            <button type="submit">Agregar jugador al ranking</button>
+        </form>
+    </div>
+
     <h2>Tabla General</h2>
 
     <div class="categoria">
@@ -917,6 +1040,84 @@
 
     <br>
 
+    <h2>Ranking Anual por Categorías</h2>
+
+    {% for categoria, lista in ranking_anual["categorias"].items() %}
+
+    <div class="categoria" style="margin-top:30px;">
+
+        <h2>Ranking Anual Categoría {{ categoria }}</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Pos</th>
+                    <th>Jugador</th>
+
+                    {% for fecha in ranking_anual["fechas"] %}
+                        <th>F{{ fecha }}</th>
+                    {% endfor %}
+
+                    <th>Total</th>
+                </tr>
+            </thead>
+
+            <tbody>
+            {% for j in lista %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ j.nombre }}</td>
+
+                    {% for fecha in ranking_anual["fechas"] %}
+                        <td>{{ j.fechas[fecha] }}</td>
+                    {% endfor %}
+
+                    <td><strong>{{ j.total }}</strong></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+    </div>
+
+    {% endfor %}
+
+    <div class="categoria" style="margin-top:30px;">
+
+        <h2>Ranking Anual General</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Pos</th>
+                    <th>Jugador</th>
+
+                    {% for fecha in ranking_anual["fechas"] %}
+                        <th>F{{ fecha }}</th>
+                    {% endfor %}
+
+                    <th>Total</th>
+                </tr>
+            </thead>
+
+            <tbody>
+            {% for j in ranking_anual["general"] %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ j.nombre }}</td>
+
+                    {% for fecha in ranking_anual["fechas"] %}
+                        <td>{{ j.fechas[fecha] }}</td>
+                    {% endfor %}
+
+                    <td><strong>{{ j.total }}</strong></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+    </div>
+
     <h2>Modificar jugadores</h2>
 
     <table>
@@ -955,25 +1156,54 @@
         <a class="reset descargar" href="/descargar_resultados">
             Descargar resultados Excel
         </a>
-
+        
+        <a class="reset descargar" href="/descargar_backup_db">
+            Descargar backup base de datos
+        </a>
+        
         <a
-            class="reset"
-            href="/reset_resultados"
-            onclick="return confirm('¿Seguro que querés borrar TODOS los resultados?')"
+            class="reset descargar"
+            href="/cerrar_fecha_ranking"
+            onclick="return confirm('¿Seguro que querés cerrar la fecha y acumular los puntos al ranking anual?')"
         >
-            Borrar resultados
+            Cerrar fecha y acumular ranking anual
         </a>
 
         <a
             class="reset"
-            href="/reset_jugadores"
-            onclick="return confirm('¿Seguro que querés borrar TODOS los jugadores y resultados?')"
+            href="/limpiar_fecha_actual"
+            onclick="return confirm('¿Seguro que querés limpiar tarjetas, matches y premios especiales de la fecha actual? No borra jugadores ni ranking anual.')"
         >
-            Borrar jugadores y resultados
+            Limpiar fecha actual
+        </a>
+
+        <a href="/confirmar_reset_total" class="reset">
+            ⚠️ Borrar TODO el sistema
         </a>
     </div>
 
-</div>
+    <h2>Restaurar Backup</h2>
 
+    <form method="POST" action="/restaurar_backup" enctype="multipart/form-data">
+        <input type="file" name="backup" accept=".db" required>
+        <button type="submit">Restaurar Base de Datos</button>
+    </form>
+
+</div>
+<script>
+function cambiarModoMatch() {
+    const modo = document.getElementById("modo_match").value;
+
+    document.getElementById("team22_pareja").style.display =
+        modo === "pareja" ? "block" : "none";
+
+    document.getElementById("aguilas_pareja").style.display =
+        modo === "pareja" ? "block" : "none";
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    cambiarModoMatch();
+});
+</script>
 </body>
 </html>
