@@ -195,9 +195,20 @@
                 {% for m in matches_equipos.pendientes %}
                     <option value="{{ m.id }}">
                         Match {{ m.numero_match }} -
+
                         {{ m.jugador_team22 }}{% if m.comodin_team22 == 1 %} ⭐{% endif %}
+
+                        {% if m.modo == "pareja" and m.jugador_team22_2 %}
+                            / {{ m.jugador_team22_2 }}{% if m.comodin_team22_2 == 1 %} ⭐{% endif %}
+                        {% endif %}
+
                         vs
+
                         {{ m.jugador_aguilas }}{% if m.comodin_aguilas == 1 %} ⭐{% endif %}
+
+                        {% if m.modo == "pareja" and m.jugador_aguilas_2 %}
+                            / {{ m.jugador_aguilas_2 }}{% if m.comodin_aguilas_2 == 1 %} ⭐{% endif %}
+                        {% endif %}
                     </option>
                 {% endfor %}
             </select>
