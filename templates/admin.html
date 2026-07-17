@@ -272,7 +272,11 @@
         <a href="/logout">Cerrar sesión</a>
     </div>
 
-    {% if ok %}
+    {% if ok == "match_play_ya_cerrado" %}
+        <div class="alerta ok">Los puntos de estos matches ya fueron acumulados.</div>
+    {% elif ok == "match_play_cerrado" %}
+        <div class="alerta ok">Match Play cerrado. Los puntos del día fueron acumulados.</div>
+    {% elif ok %}
         <div class="alerta ok">Operación realizada correctamente.</div>
     {% endif %}
 
@@ -851,9 +855,9 @@
             Puntos acumulados
             <br>
 
-            Team 22 {{ matches_equipos.total_team22 }}
+            Team 22 {{ matches_equipos.previos_team22 }}
             -
-            {{ matches_equipos.total_aguilas }} Águilas
+            {{ matches_equipos.previos_aguilas }} Águilas
 
             <br><br>
 
@@ -865,13 +869,19 @@
 
     
     <div class="acciones">
-        <a
-            class="reset descargar"
-            href="/cerrar_match_play"
-            onclick="return confirm('¿Seguro que querés cerrar el Match Play y acumular los puntos del día a los puntos totales?')"
-        >
-            Cerrar Match Play y acumular puntos
-        </a>
+        {% if matches_equipos.match_play_cerrado %}
+            <div class="alerta ok">
+                Los puntos de estos matches ya fueron acumulados.
+            </div>
+        {% else %}
+            <a
+                class="reset descargar"
+                href="/cerrar_match_play"
+                onclick="return confirm('¿Seguro que querés cerrar el Match Play y acumular los puntos del día a los puntos totales?')"
+            >
+                Cerrar Match Play y acumular puntos
+            </a>
+        {% endif %}
 
         <a
             class="reset"

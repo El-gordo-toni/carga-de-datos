@@ -177,6 +177,19 @@ def init_db():
         )
     """)
 
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS match_play_estado (
+            id INTEGER PRIMARY KEY,
+            cerrado INTEGER NOT NULL DEFAULT 0,
+            cerrado_en TEXT
+        )
+    """)
+
+    con.execute("""
+        INSERT OR IGNORE INTO match_play_estado (id, cerrado, cerrado_en)
+        VALUES (1, 0, NULL)
+    """)
+
     for equipo in ["Team 22", "Águilas"]:
         existe = con.execute("""
             SELECT equipo
@@ -378,6 +391,54 @@ def obtener_puntos_previos():
         puntos[d["equipo"]] = float(d["puntos_previos"])
 
     return puntos
+
+def obtener_estado_match_play(con=None):
+    cerrar_conexion = con is None
+
+    if cerrar_conexion:
+        con = db()
+
+    estado = con.execute("""
+        SELECT cerrado, cerrado_en
+        FROM match_play_estado
+        WHERE id = 1
+    """).fetchone()
+
+    if cerrar_conexion:
+        con.close()
+
+    if not estado:
+        return {"cerrado": False, "cerrado_en": None}
+
+    return {
+        "cerrado": int(estado["cerrado"]) == 1,
+        "cerrado_en": estado["cerrado_en"]
+    }
+
+def marcar_match_play_cerrado(con):
+    cursor = con.execute("""
+        UPDATE match_play_estado
+        SET cerrado = 1, cerrado_en = ?
+        WHERE id = 1 AND cerrado = 0
+    """, (datetime.now().isoformat(timespec="seconds"),))
+
+    return cursor.rowcount == 1
+
+def resetear_cierre_match_play(con):
+    con.execute("""
+        UPDATE match_play_estado
+        SET cerrado = 0, cerrado_en = NULL
+        WHERE id = 1
+    """)
+
+def resetear_cierre_si_no_hay_matches(con):
+    cantidad = con.execute("""
+        SELECT COUNT(*) AS cantidad
+        FROM matches_equipos
+    """).fetchone()["cantidad"]
+
+    if int(cantidad) == 0:
+        resetear_cierre_match_play(con)
 
 def obtener_categorias():
     con = db()
@@ -852,7 +913,9 @@ def obtener_matches_equipos():
         "previos_aguilas": previos_aguilas,
         "total_team22": total_team22,
         "total_aguilas": total_aguilas,
-        "ganador": ganador
+        "ganador": ganador,
+        "match_play_cerrado": obtener_estado_match_play()["cerrado"],
+        "match_play_cerrado_en": obtener_estado_match_play()["cerrado_en"]
     }
 
 @app.route("/")
@@ -1621,6 +1684,8 @@ def borrar_match_equipo(id):
         WHERE id = ?
     """, (id,))
 
+    resetear_cierre_si_no_hay_matches(con)
+
     con.commit()
     socketio.emit("actualizar_tabla")
     con.close()
@@ -1632,29 +1697,45 @@ def cerrar_match_play():
     if not admin_logueado():
         return redirect("/login")
 
-    matches_data = obtener_matches_equipos()
-
-    total_dia_team22 = float(matches_data["total_dia_team22"])
-    total_dia_aguilas = float(matches_data["total_dia_aguilas"])
-
     con = db()
 
-    con.execute("""
-        UPDATE puntos_equipos
-        SET puntos_previos = puntos_previos + ?
-        WHERE equipo = 'Team 22'
-    """, (total_dia_team22,))
+    try:
+        con.execute("BEGIN IMMEDIATE")
 
-    con.execute("""
-        UPDATE puntos_equipos
-        SET puntos_previos = puntos_previos + ?
-        WHERE equipo = 'Águilas'
-    """, (total_dia_aguilas,))
+        if not marcar_match_play_cerrado(con):
+            con.rollback()
+            return redirect("/admin?ok=match_play_ya_cerrado")
 
-    con.commit()
+        totales = con.execute("""
+            SELECT
+                COALESCE(SUM(puntos_tabla_team22), 0) AS total_dia_team22,
+                COALESCE(SUM(puntos_tabla_aguilas), 0) AS total_dia_aguilas
+            FROM matches_equipos
+        """).fetchone()
+
+        total_dia_team22 = float(totales["total_dia_team22"])
+        total_dia_aguilas = float(totales["total_dia_aguilas"])
+
+        con.execute("""
+            UPDATE puntos_equipos
+            SET puntos_previos = puntos_previos + ?
+            WHERE equipo = 'Team 22'
+        """, (total_dia_team22,))
+
+        con.execute("""
+            UPDATE puntos_equipos
+            SET puntos_previos = puntos_previos + ?
+            WHERE equipo = 'Águilas'
+        """, (total_dia_aguilas,))
+
+        con.commit()
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        con.close()
+
     socketio.emit("actualizar_tabla")
-    con.close()
-
     return redirect("/admin?ok=match_play_cerrado")
 
 @app.route("/reset_matches_equipos")
@@ -1665,6 +1746,7 @@ def reset_matches_equipos():
     con = db()
 
     con.execute("DELETE FROM matches_equipos")
+    resetear_cierre_match_play(con)
 
     con.commit()
     socketio.emit("actualizar_tabla")
@@ -2426,6 +2508,7 @@ def limpiar_fecha_actual():
 
     con.execute("DELETE FROM tarjetas")
     con.execute("DELETE FROM matches_equipos")
+    resetear_cierre_match_play(con)
 
     con.execute("""
         UPDATE premios_especiales
@@ -2500,6 +2583,7 @@ def reset_todo():
     con.execute("DELETE FROM puntos_equipos")
     con.execute("DELETE FROM premios_especiales")
     con.execute("DELETE FROM configuracion")
+    con.execute("DELETE FROM match_play_estado")
 
     con.commit()
     con.close()
